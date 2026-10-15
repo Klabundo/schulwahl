@@ -132,6 +132,7 @@ async function loadDetail() {
       <div>
         <h2>${esc(el.title)} ${statusPill(el.status)}
           ${(el.round || 1) > 1 ? `<span class="pill round">Runde ${el.round}</span>` : ""}
+          ${el.hide_results ? `<span class="pill round sm" title="Ergebnisse erst nach Wahlschluss sichtbar">🔒 Blind-Voting</span>` : ""}
         </h2>
         ${el.description ? `<p class="muted">${esc(el.description)}</p>` : ""}
         ${el.ends_at ? `<p class="muted">Stichtag: ${fmtDe(el.ends_at)}</p>` : ""}
@@ -139,6 +140,7 @@ async function loadDetail() {
       <div class="row-actions">
         ${el.status === "draft" ? `<button class="btn primary" id="start-btn">Starten</button>` : ""}
         ${open ? `<button class="btn danger" id="close-btn">Beenden</button>` : ""}
+        <button class="btn ghost" id="toggle-hide-btn" title="Blind-Voting">${el.hide_results ? "🔓 Live aufdecken" : "🔒 Blind-Voting"}</button>
         ${el.status !== "closed"
           ? `<button class="btn ghost" id="deadline-btn" title="Stichtag setzen">Stichtag</button>` : ""}
         <button class="btn ghost" id="delete-btn" title="Löschen">Löschen</button>
@@ -162,6 +164,11 @@ async function loadDetail() {
         <label>Anzahl</label>
         <input id="ballot-count" type="number" min="1" max="500" value="20">
         <button class="btn" id="add-ballots">Erzeugen</button>
+        <select id="print-filter">
+          <option value="unused" selected>Nur unbenutzte drucken</option>
+          <option value="all">Alle Zettel drucken</option>
+          <option value="used">Nur benutzte drucken</option>
+        </select>
         <select id="print-per" title="Stimmzettel pro Seite">
           <option value="25">25 / Seite</option>
           <option value="50" selected>50 / Seite</option>
@@ -230,6 +237,15 @@ async function loadDetail() {
     });
   }
 
+  $("toggle-hide-btn").addEventListener("click", async () => {
+    await supabase.rpc("admin_set_hide_results", {
+      p_pw: pw,
+      p_election_id: numEid,
+      p_hide: !el.hide_results
+    });
+    await loadDetail();
+  });
+
   $("delete-btn").addEventListener("click", async () => {
     if (confirm("Wahl samt Stimmzetteln und Stimmen wirklich löschen?")) {
       await supabase.rpc("admin_delete_election", {
@@ -277,7 +293,8 @@ async function loadDetail() {
   $("print-ballots").addEventListener("click", () => {
     const per = $("print-per").value;
     const qr = $("print-qr").checked ? "1" : "0";
-    window.open(`print.html?e=${numEid}&per=${per}&qr=${qr}`, "_blank");
+    const filter = $("print-filter").value;
+    window.open(`print.html?e=${numEid}&per=${per}&qr=${qr}&filter=${filter}`, "_blank");
   });
 
   $("refresh-results").addEventListener("click", loadDetail);
@@ -400,13 +417,15 @@ async function initAdminApp() {
     const desc = $("new-desc").value.trim();
     const max = Number($("new-max").value) || 1;
     const dl = $("new-deadline").value ? new Date($("new-deadline").value).toISOString() : null;
+    const hide = $("new-hide-results") ? $("new-hide-results").checked : false;
 
     const { data: res } = await supabase.rpc("admin_create_election", {
       p_pw: pw,
       p_title: title,
       p_description: desc,
       p_max_votes: max,
-      p_ends_at: dl
+      p_ends_at: dl,
+      p_hide_results: hide
     });
 
     if (res && res.ok && res.id) {

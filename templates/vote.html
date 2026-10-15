@@ -5,6 +5,29 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Abstimmen · Käthe-Kollwitz-Gymnasium</title>
 <link rel="stylesheet" href="static/style.css">
+<style>
+  #scanner-modal {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 1rem;
+    margin-bottom: 1.2rem;
+    text-align: center;
+  }
+  #reader {
+    width: 100%;
+    max-width: 320px;
+    margin: 0 auto 0.8rem;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .scanner-actions {
+    display: flex;
+    gap: 0.6rem;
+    margin-bottom: 1rem;
+  }
+</style>
 </head>
 <body>
 <header class="top">
@@ -23,6 +46,12 @@
 <div class="center-col">
   <div class="card vote-card">
     <h1>Abstimmen</h1>
+
+    <div id="scanner-modal">
+      <div id="reader"></div>
+      <button class="btn ghost small" id="stop-scan-btn" type="button">Kamera schließen</button>
+    </div>
+
     <div class="code-row">
       <label class="field">
         <span>Wahl-Nummer</span>
@@ -33,7 +62,12 @@
         <input type="text" id="code" class="code-input" placeholder="ABCD-1234" maxlength="9" required>
       </label>
     </div>
-    <button class="btn" id="load-btn" type="button">Weiter</button>
+
+    <div class="scanner-actions">
+      <button class="btn" id="load-btn" type="button" style="flex:1">Weiter</button>
+      <button class="btn ghost" id="start-scan-btn" type="button" title="QR-Code mit Kamera scannen">📷 QR scannen</button>
+    </div>
+
     <div id="election-box"></div>
     <div id="result-box"></div>
   </div>
@@ -44,11 +78,19 @@
 
 <script src="static/supabase.js"></script>
 <script src="static/supabase-config.js"></script>
+<script src="static/html5-qrcode.min.js"></script>
 <script>
 const $ = (id) => document.getElementById(id);
+let html5QrCode = null;
 
 function normalizeCode(v) {
   return v.toUpperCase().replace(/[^A-Z0-9-]/g, "").replace(/-{2,}/g, "-");
+}
+
+function triggerHaptic(pattern = 50) {
+  if (navigator.vibrate) {
+    try { navigator.vibrate(pattern); } catch (_) {}
+  }
 }
 
 function showClosed(el) {
@@ -171,6 +213,7 @@ function renderElection(el) {
       if (error || !res || !res.ok) {
         $("result-box").innerHTML = `<p class="error">${esc((res && res.error) || error?.message || "Fehler beim Abstimmen.")}</p>`;
       } else {
+        triggerHaptic([80, 40, 80]);
         $("election-box").innerHTML = "";
         $("result-box").innerHTML = `
           <div class="success">
@@ -204,6 +247,60 @@ function renderElection(el) {
   }
 }
 
+async function startQrScanner() {
+  const modal = $("scanner-modal");
+  modal.style.display = "block";
+
+  if (!html5QrCode) {
+    html5QrCode = new Html5Qrcode("reader");
+  }
+
+  const onScanSuccess = (decodedText) => {
+    triggerHaptic(50);
+    stopQrScanner();
+
+    // Check if URL or plain code
+    try {
+      if (decodedText.includes("?") && (decodedText.includes("e=") || decodedText.includes("code="))) {
+        const u = new URL(decodedText, location.origin);
+        const qEid = u.searchParams.get("e");
+        const qCode = u.searchParams.get("code");
+        if (qEid) $("eid").value = qEid;
+        if (qCode) $("code").value = normalizeCode(qCode);
+      } else {
+        $("code").value = normalizeCode(decodedText);
+      }
+    } catch (_) {
+      $("code").value = normalizeCode(decodedText);
+    }
+
+    if ($("eid").value.trim()) {
+      loadElection();
+    }
+  };
+
+  try {
+    await html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 220, height: 220 } },
+      onScanSuccess,
+      () => {}
+    );
+  } catch (err) {
+    alert("Kamerazugriff nicht möglich oder verweigert.");
+    stopQrScanner();
+  }
+}
+
+async function stopQrScanner() {
+  if (html5QrCode) {
+    try {
+      await html5QrCode.stop();
+    } catch (_) {}
+  }
+  $("scanner-modal").style.display = "none";
+}
+
 $("code").addEventListener("input", e => { e.target.value = normalizeCode(e.target.value); });
 
 window.addEventListener("DOMContentLoaded", () => {
@@ -215,6 +312,8 @@ window.addEventListener("DOMContentLoaded", () => {
   if (qCode) $("code").value = normalizeCode(qCode);
 
   $("load-btn").addEventListener("click", loadElection);
+  $("start-scan-btn").addEventListener("click", startQrScanner);
+  $("stop-scan-btn").addEventListener("click", stopQrScanner);
 
   if ($("eid").value.trim()) {
     loadElection();

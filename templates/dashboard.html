@@ -35,9 +35,11 @@
     <div class="stat"><span id="stat-part">–</span><small>Stimmzettel</small></div>
   </div>
 
-  <div class="card">
-    <div id="bars" class="bars"></div>
-    <p class="hint" id="dash-hint"></p>
+  <div id="results-container">
+    <div class="card">
+      <div id="bars" class="bars"></div>
+      <p class="hint" id="dash-hint"></p>
+    </div>
   </div>
 
   <div class="dash-pick">
@@ -93,6 +95,7 @@ async function loadResults(eid, silent = false) {
       description: el.description,
       round: el.round,
       status: el.status,
+      hide_results: el.hide_results,
       totals: {
         votes: voteList.length
       },
@@ -125,11 +128,24 @@ function render(el) {
   document.getElementById("stat-votes").textContent = el.totals.votes;
   document.getElementById("stat-part").textContent = el.totals.votes;
 
+  const container = document.getElementById("results-container");
+
+  // Blind-Voting Prüfung: Verdeckter Zwischenstand bei aktiver Wahl
+  if (el.hide_results && el.status !== "closed") {
+    container.innerHTML = `
+      <div class="card" style="text-align:center; padding: 2.2rem 1.4rem;">
+        <div style="font-size:2rem; margin-bottom: 0.5rem;">🔒</div>
+        <h3>Zwischenstand verdeckt</h3>
+        <p class="muted">Ergebnisse werden nach Beendigung der Wahl automatisch aufgedeckt.</p>
+        <p class="hint">Live-Beteiligung wird gezählt (${el.totals.votes} Stimmen bisher)</p>
+      </div>`;
+    return;
+  }
+
   const max = Math.max(1, ...el.candidates.map(c => c.votes));
-  const bars = document.getElementById("bars");
   const sorted = [...el.candidates].sort((a, b) => b.votes - a.votes);
 
-  bars.innerHTML = sorted.map((c, i) => {
+  const barsHtml = sorted.map((c, i) => {
     const pct = el.totals.votes ? Math.round(100 * c.votes / el.totals.votes) : 0;
     return `
       <div class="bar-row">
@@ -144,8 +160,11 @@ function render(el) {
       </div>`;
   }).join("");
 
-  const hint = document.getElementById("dash-hint");
-  hint.textContent = el.status === "running" ? "Live-Aktualisierung aktiv" : "Wahl beendet";
+  container.innerHTML = `
+    <div class="card">
+      <div id="bars" class="bars">${barsHtml}</div>
+      <p class="hint" id="dash-hint">${el.status === "running" ? "Live-Aktualisierung aktiv" : "Wahl beendet"}</p>
+    </div>`;
 }
 
 function subscribeRealtime(eid) {

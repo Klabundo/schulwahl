@@ -61,6 +61,11 @@
 
 <div class="screen-bar">
   <h1 id="bar-title">Stimmzettel drucken</h1>
+  <label><select id="filter-sel">
+    <option value="unused">Nur freie (unbenutzte) Zettel</option>
+    <option value="all">Alle Zettel</option>
+    <option value="used">Nur benutzte Zettel</option>
+  </select></label>
   <label><select id="per-sel">
     <option value="25">25 pro Seite</option>
     <option value="50" selected>50 pro Seite</option>
@@ -81,7 +86,12 @@
 <script>
 const qs = new URLSearchParams(location.search);
 const eid = Number(qs.get("e"));
+const qFilter = qs.get("filter");
 let pw = sessionStorage.getItem("admin_pw");
+
+if (qFilter && ["all", "unused", "used"].includes(qFilter)) {
+  document.getElementById("filter-sel").value = qFilter;
+}
 
 function getVoteUrl(code) {
   const origin = location.origin + location.pathname.replace("print.html", "vote.html");
@@ -90,7 +100,7 @@ function getVoteUrl(code) {
 
 async function render() {
   if (!eid) {
-    document.body.innerHTML = "<p>Keine Wahl angegeben (?e=...).</p>";
+    document.body.innerHTML = "<p style='padding:2rem'>Keine Wahl angegeben (?e=...).</p>";
     return;
   }
 
@@ -112,16 +122,32 @@ async function render() {
     return;
   }
 
-  const ballots = res.ballots || [];
+  const allBallots = res.ballots || [];
+  const filterVal = document.getElementById("filter-sel").value;
+
+  let ballots = allBallots;
+  if (filterVal === "unused") {
+    ballots = allBallots.filter(b => !b.used_at);
+  } else if (filterVal === "used") {
+    ballots = allBallots.filter(b => b.used_at);
+  }
+
   const perPage = Number(document.getElementById("per-sel").value);
   const withQr = document.getElementById("qr-chk").checked;
   const container = document.getElementById("pages-container");
   container.innerHTML = "";
 
+  if (!ballots.length) {
+    container.innerHTML = `<p style="padding: 2rem; color: #666; font-size: 1.1rem;">Keine Stimmzettel für den Filter „${document.getElementById("filter-sel").selectedOptions[0].text}“ vorhanden (Gesamt: ${allBallots.length}).</p>`;
+    return;
+  }
+
   const pages = [];
   for (let i = 0; i < ballots.length; i += perPage) {
     pages.push(ballots.slice(i, i + perPage));
   }
+
+  const filterLabel = filterVal === "unused" ? "nur freie" : filterVal === "used" ? "nur benutzte" : "alle";
 
   pages.forEach((pageBallots, pIdx) => {
     const pageEl = document.createElement("div");
@@ -131,7 +157,7 @@ async function render() {
     headEl.className = "print-head";
     headEl.innerHTML = `
       <h2>Käthe-Kollwitz-Gymnasium <small>· ${esc(el.title)}</small></h2>
-      <div class="meta">Wahl #${el.id} · Seite ${pIdx + 1} von ${pages.length} · Zettel ${pIdx * perPage + 1} bis ${Math.min(ballots.length, (pIdx + 1) * perPage)} von ${ballots.length}</div>
+      <div class="meta">Wahl #${el.id} · ${ballots.length} Zettel (${filterLabel}) · Seite ${pIdx + 1} von ${pages.length} · Zettel ${pIdx * perPage + 1} bis ${Math.min(ballots.length, (pIdx + 1) * perPage)}</div>
     `;
     pageEl.appendChild(headEl);
 
@@ -185,6 +211,7 @@ function showAuth() {
   };
 }
 
+document.getElementById("filter-sel").addEventListener("change", render);
 document.getElementById("per-sel").addEventListener("change", render);
 document.getElementById("qr-chk").addEventListener("change", render);
 document.getElementById("print-btn").addEventListener("click", () => window.print());
