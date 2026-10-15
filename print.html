@@ -3,48 +3,130 @@
 <head>
 <meta charset="utf-8">
 <title>Stimmzettel drucken · Käthe-Kollwitz-Gymnasium</title>
+<script>
+(function(){
+  const s = localStorage.getItem('theme');
+  const d = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  document.documentElement.setAttribute('data-theme', s || (d ? 'dark' : 'light'));
+})();
+</script>
 <style>
-  :root { --blue: #265D8E; --orange: #FCB11B; }
-  * { box-sizing: border-box; }
-  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-         margin: 0; color: #1f2933; background: #fff; }
+  :root {
+    color-scheme: light;
+    --blue: #265D8E;
+    --orange: #FCB11B;
+    --bg: #f4f6f9;
+    --card: #ffffff;
+    --surface: #fbfcfd;
+    --ink: #1f2933;
+    --muted: #555555;
+    --line: #dbe2ea;
+  }
+  [data-theme="dark"] {
+    color-scheme: dark;
+    --blue: #4ba3e3;
+    --bg: #0b0f17;
+    --card: #151c28;
+    --surface: #1c2637;
+    --ink: #f1f5f9;
+    --muted: #94a3b8;
+    --line: #263347;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --blue: #4ba3e3;
+      --bg: #0b0f17;
+      --card: #151c28;
+      --surface: #1c2637;
+      --ink: #f1f5f9;
+      --muted: #94a3b8;
+      --line: #263347;
+    }
+  }
 
-  .screen-bar { position: sticky; top: 0; z-index: 9;
-    background: #fff; border-bottom: 3px solid var(--blue);
+  * { box-sizing: border-box; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    margin: 0;
+    color: var(--ink);
+    background: var(--bg);
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  .screen-bar {
+    position: sticky; top: 0; z-index: 9;
+    background: var(--card); border-bottom: 2px solid var(--line);
     padding: 10px 16px; display: flex; gap: 14px; align-items: center;
-    flex-wrap: wrap; }
+    flex-wrap: wrap; box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
   .screen-bar h1 { font-size: 15px; margin: 0 12px 0 0; color: var(--blue); }
-  .screen-bar select { padding: 4px 8px; }
-  .screen-bar label { font-size: 14px; display: flex; gap: 6px; align-items: center; }
-  .screen-bar .spacer { margin-left: auto; display: flex; gap: 10px; }
+  .screen-bar select { padding: 4px 8px; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; }
+  .screen-bar label { font-size: 14px; display: flex; gap: 6px; align-items: center; color: var(--ink); }
+  .screen-bar .spacer { margin-left: auto; display: flex; gap: 10px; align-items: center; }
   .screen-bar a.btn, .screen-bar button.btn {
     font-size: 14px; padding: 6px 14px; border-radius: 8px; cursor: pointer;
-    text-decoration: none; display: inline-block; }
-  .screen-bar a.btn { background: #fff; color: var(--blue); border: 1.5px solid var(--blue); }
+    text-decoration: none; display: inline-block; font-weight: 600;
+  }
+  .screen-bar a.btn { background: var(--surface); color: var(--blue); border: 1.5px solid var(--line); }
   .screen-bar button.btn { background: var(--blue); color: #fff; border: none; }
+
+  /* Theme toggle button */
+  .theme-toggle {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    color: var(--muted);
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 999px;
+    margin-left: 4px;
+    flex: none;
+    transition: color .12s ease, border-color .12s ease, background .12s ease;
+  }
+  .theme-toggle:hover {
+    color: var(--ink);
+    border-color: var(--blue);
+  }
+  :root .sun-icon { display: none; }
+  :root .moon-icon { display: block; }
+  [data-theme="dark"] .sun-icon { display: block; }
+  [data-theme="dark"] .moon-icon { display: none; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .sun-icon { display: block; }
+    :root:not([data-theme="light"]) .moon-icon { display: none; }
+  }
 
   @page { size: A4; margin: 0; }
   @media print {
-    .screen-bar, .lightbox-overlay { display: none !important; }
+    .screen-bar, .lightbox-overlay, .theme-toggle { display: none !important; }
     .cell .qr { cursor: default; }
     .cell .qr:hover { transform: none; filter: none; }
+    body, .print-page, .cell { background: #fff !important; color: #000 !important; border-color: #333 !important; }
+    .print-head h2 { color: #265D8E !important; }
+    .print-head { border-bottom-color: #265D8E !important; }
+    .print-head h2 small, .print-head .meta, .cell small { color: #555 !important; }
   }
 
-  .print-page { padding: 10mm 9mm; page-break-after: always; }
+  .print-page { padding: 10mm 9mm; page-break-after: always; background: var(--card); color: var(--ink); }
   .print-page:last-child { page-break-after: auto; }
   .print-head { display: flex; justify-content: space-between; align-items: baseline;
     border-bottom: 3px solid var(--blue); padding-bottom: 6px; margin-bottom: 9px;
     gap: 12px; flex-wrap: wrap; }
   .print-head h2 { font-size: 15pt; margin: 0; color: var(--blue); }
-  .print-head h2 small { font-size: 10pt; color: #555; font-weight: 400; }
-  .print-head .meta { font-size: 9.5pt; color: #555; }
+  .print-head h2 small { font-size: 10pt; color: var(--muted); font-weight: 400; }
+  .print-head .meta { font-size: 9.5pt; color: var(--muted); }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
-  .cell { border: 1.5px solid #333; border-radius: 6px; padding: 6px 10px;
+  .cell { border: 1.5px solid var(--line); border-radius: 6px; padding: 6px 10px;
     display: flex; gap: 10px; align-items: center; min-height: 40px;
-    page-break-inside: avoid; }
+    page-break-inside: avoid; background: var(--surface); color: var(--ink); }
   .cell .code { font-family: "Courier New", monospace; font-size: 14pt;
-    font-weight: 700; letter-spacing: 1.5px; }
-  .cell small { display: block; color: #666; font-size: 8pt; line-height: 1.35; }
+    font-weight: 700; letter-spacing: 1.5px; color: var(--ink); }
+  .cell small { display: block; color: var(--muted); font-size: 8pt; line-height: 1.35; }
 
   /* Hochauflösende QR-Codes: intern 256x256, skaliert auf 44x44 für gestochen scharfen Druck */
   .cell .qr {
@@ -56,6 +138,8 @@
     justify-content: center;
     cursor: pointer;
     border-radius: 4px;
+    background: #ffffff;
+    padding: 2px;
     transition: transform 0.15s ease, filter 0.15s ease;
   }
   .cell .qr:hover {
@@ -63,8 +147,8 @@
     filter: drop-shadow(0 2px 6px rgba(0,0,0,0.3));
   }
   .cell .qr canvas, .cell .qr img {
-    width: 44px !important;
-    height: 44px !important;
+    width: 40px !important;
+    height: 40px !important;
     image-rendering: -webkit-optimize-contrast;
     image-rendering: crisp-edges;
   }
@@ -90,7 +174,9 @@
   .lightbox-card {
     position: relative;
     z-index: 1;
-    background: #ffffff;
+    background: var(--card);
+    color: var(--ink);
+    border: 1px solid var(--line);
     border-radius: 16px;
     padding: 2rem;
     max-width: 90vw;
@@ -111,11 +197,11 @@
     border: none;
     font-size: 28px;
     line-height: 1;
-    color: #64748b;
+    color: var(--muted);
     cursor: pointer;
     padding: 4px;
   }
-  .lightbox-close:hover { color: #0f172a; }
+  .lightbox-close:hover { color: var(--ink); }
   .lightbox-qr {
     width: 280px;
     height: 280px;
@@ -123,13 +209,16 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    background: #ffffff;
+    padding: 8px;
+    border-radius: 8px;
   }
   .lightbox-qr canvas, .lightbox-qr img {
-    width: 280px !important;
-    height: 280px !important;
+    width: 264px !important;
+    height: 264px !important;
     image-rendering: pixelated;
     image-rendering: crisp-edges;
-    border-radius: 8px;
+    border-radius: 4px;
   }
   .lightbox-code {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -140,7 +229,7 @@
     margin-bottom: 0.3rem;
   }
   .lightbox-title {
-    color: #64748b;
+    color: var(--muted);
     font-size: 0.95rem;
     margin-bottom: 1.2rem;
   }
@@ -151,7 +240,8 @@
   }
 
   #auth-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 99; }
-  .auth-card { background: #fff; padding: 24px; border-radius: 12px; width: 340px; }
+  .auth-card { background: var(--card); color: var(--ink); border: 1px solid var(--line); padding: 24px; border-radius: 12px; width: 340px; }
+  .auth-card input { background: var(--surface); color: var(--ink); border: 1px solid var(--line); }
 </style>
 </head>
 <body>
@@ -195,13 +285,17 @@
   <span class="spacer">
     <a class="btn" href="admin.html">Zurück zur Verwaltung</a>
     <button class="btn" id="print-btn" type="button">Drucken</button>
+    <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Darkmode umschalten" title="Farbschema wechseln">
+      <svg class="sun-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      <svg class="moon-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
   </span>
 </div>
 
 <div id="pages-container"></div>
 
 <script src="static/supabase.js"></script>
-<script src="static/supabase-config.js?v=3"></script>
+<script src="static/supabase-config.js?v=4"></script>
 <script src="static/qrcode.min.js"></script>
 <script>
 const qs = new URLSearchParams(location.search);
@@ -294,7 +388,7 @@ async function render() {
   container.innerHTML = "";
 
   if (!ballots.length) {
-    container.innerHTML = `<p style="padding: 2rem; color: #666; font-size: 1.1rem;">Keine Stimmzettel für den Filter „${document.getElementById("filter-sel").selectedOptions[0].text}“ vorhanden (Gesamt: ${allBallots.length}).</p>`;
+    container.innerHTML = `<p style="padding: 2rem; color: var(--muted); font-size: 1.1rem;">Keine Stimmzettel für den Filter „${document.getElementById("filter-sel").selectedOptions[0].text}“ vorhanden (Gesamt: ${allBallots.length}).</p>`;
     return;
   }
 

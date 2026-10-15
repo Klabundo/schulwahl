@@ -1,4 +1,5 @@
 :root {
+  color-scheme: light;
   /* KKG-Farben (aus dem Schullogo): Blau #265D8E, Orange #FCB11B */
   --bg: #f4f6f9;
   --card: #ffffff;
@@ -24,6 +25,7 @@
 }
 
 [data-theme="dark"] {
+  color-scheme: dark;
   --bg: #0b0f17;
   --card: #151c28;
   --surface: #1c2637;
@@ -50,6 +52,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
+    color-scheme: dark;
     --bg: #0b0f17;
     --card: #151c28;
     --surface: #1c2637;
@@ -76,6 +79,10 @@
 }
 
 * { box-sizing: border-box; }
+
+html {
+  background-color: var(--bg);
+}
 
 body {
   margin: 0;
@@ -355,6 +362,38 @@ input:focus, textarea:focus, select:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
+}
+select option {
+  background: var(--card);
+  color: var(--ink);
+}
+input::placeholder, textarea::placeholder {
+  color: var(--muted);
+  opacity: 0.7;
+}
+
+#scanner-modal {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin-bottom: 1.2rem;
+  text-align: center;
+}
+#reader {
+  width: 100%;
+  max-width: 320px;
+  margin: 0 auto 0.8rem;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--card);
+  color: var(--ink);
+}
+#reader select, #reader button {
+  background: var(--surface) !important;
+  color: var(--ink) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 8px !important;
 }
 .code-input {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;

@@ -37,6 +37,12 @@ window.toggleTheme = function() {
   try { localStorage.setItem("theme", next); } catch (e) {}
 };
 
+window.addEventListener("storage", (e) => {
+  if (e.key === "theme" && e.newValue) {
+    document.documentElement.setAttribute("data-theme", e.newValue);
+  }
+});
+
 function bindThemeToggle() {
   const btn = document.getElementById("theme-toggle");
   if (btn && !btn.dataset.bound) {
