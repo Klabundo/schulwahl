@@ -23,17 +23,14 @@
 <div class="center-col">
   <div class="card vote-card">
     <h1>Abstimmen</h1>
-    <p class="muted">Gib die Wahl-Nummer und deinen persönlichen Stimmcode vom
-      Zettel ein – schon kannst du abstimmen.</p>
     <div class="code-row">
       <label class="field">
-        <span>Wahl-Nummer <small class="muted">(steht oben auf dem Zettel)</small></span>
+        <span>Wahl-Nummer</span>
         <input type="text" id="eid" inputmode="numeric" required>
       </label>
       <label class="field code-field">
-        <span>Dein Stimmcode</span>
-        <input type="text" id="code" class="code-input" placeholder="ABCD-1234"
-               maxlength="9" required>
+        <span>Stimmcode</span>
+        <input type="text" id="code" class="code-input" placeholder="ABCD-1234" maxlength="9" required>
       </label>
     </div>
     <button class="btn" id="load-btn" type="button">Weiter</button>
@@ -43,7 +40,7 @@
 </div>
 </main>
 
-<footer class="foot">Ökologie- &amp; Demokratiewoche am Käthe-Kollwitz-Gymnasium · ein Code, eine Stimme – abstimmen ist anonym</footer>
+<footer class="foot">Käthe-Kollwitz-Gymnasium</footer>
 
 <script src="static/supabase.js"></script>
 <script src="static/supabase-config.js"></script>
@@ -56,8 +53,7 @@ function normalizeCode(v) {
 
 function showClosed(el) {
   $("election-box").innerHTML = "";
-  $("result-box").innerHTML = `<p class="status-note">„${esc(el.title)}“ ist beendet –
-    hier geht nicht mehr abstimmen.</p>`;
+  $("result-box").innerHTML = `<p class="status-note">„${esc(el.title)}“ ist beendet.</p>`;
 }
 
 async function loadElection() {
@@ -67,7 +63,7 @@ async function loadElection() {
   $("result-box").innerHTML = "";
 
   if (!/^\d+$/.test(eid)) {
-    box.innerHTML = '<p class="error">Gib zuerst die Wahl-Nummer an – die steht oben auf deinem Zettel.</p>';
+    box.innerHTML = '<p class="error">Bitte Wahl-Nummer eingeben.</p>';
     return;
   }
 
@@ -78,12 +74,12 @@ async function loadElection() {
     .single();
 
   if (error || !el) {
-    box.innerHTML = '<p class="error">Keine Wahl mit dieser Nummer gefunden – Nummer bitte nochmal prüfen.</p>';
+    box.innerHTML = '<p class="error">Wahl nicht gefunden.</p>';
     return;
   }
 
   if (el.status === "draft") {
-    box.innerHTML = `<p class="status-note">„${esc(el.title)}“ hat noch nicht begonnen – schau gleich noch mal vorbei.</p>`;
+    box.innerHTML = `<p class="status-note">„${esc(el.title)}“ hat noch nicht begonnen.</p>`;
     return;
   }
 
@@ -92,7 +88,6 @@ async function loadElection() {
     return;
   }
 
-  // Falls Code bereits eingegeben wurde, direkt prüfen
   if (code) {
     const { data: check, error: checkErr } = await supabase.rpc("verify_code", {
       p_election_id: Number(eid),
@@ -104,7 +99,6 @@ async function loadElection() {
     }
   }
 
-  // Sort candidates
   if (el.candidates) {
     el.candidates.sort((a, b) => (a.sort - b.sort) || (a.id - b.id));
   }
@@ -119,14 +113,12 @@ function renderElection(el) {
   box.innerHTML = `
     <div class="election-head">
       <h2>${esc(el.title)}
-        ${(el.round || 1) > 1 ? `<span class="pill round">Finale · Runde ${el.round}</span>` : ""}
+        ${(el.round || 1) > 1 ? `<span class="pill round">Runde ${el.round}</span>` : ""}
       </h2>
       ${el.description ? `<p class="muted">${esc(el.description)}</p>` : ""}
       ${el.ends_at ? `<p class="muted" id="deadline-note"></p>` : ""}
     </div>
-    <p class="pick-hint">${multi
-        ? `Du kannst hier bis zu ${el.max_votes} Optionen ankreuzen:`
-        : "Wofür stimmst du?"}</p>
+    ${multi ? `<p class="pick-hint">Maximal ${el.max_votes} Stimmen:</p>` : ""}
     <div class="options" id="options">
       ${(el.candidates || []).map(c => `
         <label class="option" data-id="${c.id}">
@@ -153,18 +145,18 @@ function renderElection(el) {
     const code = $("code").value.trim();
 
     if (!code) {
-      $("result-box").innerHTML = '<p class="error">Bitte gib zuerst deinen Stimmcode ein.</p>';
+      $("result-box").innerHTML = '<p class="error">Bitte Stimmcode eingeben.</p>';
       return;
     }
 
     if (!ids.length) {
-      $("result-box").innerHTML = '<p class="error">Wähle vorher mindestens eine Option aus.</p>';
+      $("result-box").innerHTML = '<p class="error">Bitte mindestens eine Option wählen.</p>';
       return;
     }
 
     const btn = $("submit-vote");
     btn.disabled = true;
-    btn.textContent = "Wird abgesendet …";
+    btn.textContent = "Senden …";
 
     try {
       const { data: res, error } = await supabase.rpc("cast_vote", {
@@ -183,16 +175,14 @@ function renderElection(el) {
         $("result-box").innerHTML = `
           <div class="success">
             <div class="success-mark">✓</div>
-            <h2>Deine Stimme ist drin!</h2>
-            <p>${esc(res.message || "Danke für deine Stimme.")}</p>
-            ${res.total ? `<p class="muted">Das war Stimmzettel ${res.total} – du hast gerade mitentschieden.</p>` : ""}
-            <p style="margin-top:20px"><a class="btn small" href="dashboard.html?e=${el.id}">Live-Ergebnis ansehen →</a></p>
+            <h2>Stimme gespeichert</h2>
+            <p style="margin-top:20px"><a class="btn small" href="dashboard.html?e=${el.id}">Ergebnis anzeigen →</a></p>
           </div>`;
       }
     } catch (err) {
       btn.disabled = false;
       btn.textContent = "Abstimmen";
-      $("result-box").innerHTML = '<p class="error">Netzwerkfehler beim Absenden der Stimme.</p>';
+      $("result-box").innerHTML = '<p class="error">Netzwerkfehler.</p>';
     }
   });
 
@@ -207,7 +197,7 @@ function renderElection(el) {
         showClosed(el);
         return;
       }
-      note.textContent = `⏱ Die Abstimmung endet in ${fmtUntil(ms)}.`;
+      note.textContent = `Endet in ${fmtUntil(ms)}.`;
     };
     tick();
     timer = setInterval(tick, 1000);

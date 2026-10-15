@@ -131,17 +131,17 @@ async function loadDetail() {
     <div class="detail-head">
       <div>
         <h2>${esc(el.title)} ${statusPill(el.status)}
-          ${(el.round || 1) > 1 ? `<span class="pill round">Finale · Runde ${el.round}</span>` : ""}
+          ${(el.round || 1) > 1 ? `<span class="pill round">Runde ${el.round}</span>` : ""}
         </h2>
-        <p class="muted">${esc(el.description || "")}</p>
-        ${el.ends_at ? `<p class="muted">⏱ Stichtag: ${fmtDe(el.ends_at)} – danach beendet sich die Wahl automatisch.</p>` : ""}
+        ${el.description ? `<p class="muted">${esc(el.description)}</p>` : ""}
+        ${el.ends_at ? `<p class="muted">Stichtag: ${fmtDe(el.ends_at)}</p>` : ""}
       </div>
       <div class="row-actions">
-        ${el.status === "draft" ? `<button class="btn primary" id="start-btn">Wahl starten</button>` : ""}
-        ${open ? `<button class="btn danger" id="close-btn">Wahl beenden</button>` : ""}
+        ${el.status === "draft" ? `<button class="btn primary" id="start-btn">Starten</button>` : ""}
+        ${open ? `<button class="btn danger" id="close-btn">Beenden</button>` : ""}
         ${el.status !== "closed"
-          ? `<button class="btn ghost" id="deadline-btn" title="Stichtag setzen oder entfernen">Stichtag</button>` : ""}
-        <button class="btn ghost" id="delete-btn" title="Wahl samt Stimmzetteln und Stimmen löschen">Löschen</button>
+          ? `<button class="btn ghost" id="deadline-btn" title="Stichtag setzen">Stichtag</button>` : ""}
+        <button class="btn ghost" id="delete-btn" title="Löschen">Löschen</button>
       </div>
     </div>
     <div class="tabs">
@@ -151,32 +151,32 @@ async function loadDetail() {
     </div>
     <div id="tab-cands" class="tab-pane">
       <div class="add-row">
-        <input id="cand-name" placeholder="Name des Projekts / der Person">
-        <input id="cand-slogan" placeholder="Kurzer Slogan (optional)">
+        <input id="cand-name" placeholder="Name">
+        <input id="cand-slogan" placeholder="Slogan (optional)">
         <button class="btn" id="add-cand">Hinzufügen</button>
       </div>
       <div class="cand-list" id="cand-list"></div>
     </div>
     <div id="tab-ballots" class="tab-pane hidden">
       <div class="add-row">
-        <label>Stimmzettel anlegen</label>
+        <label>Anzahl</label>
         <input id="ballot-count" type="number" min="1" max="500" value="20">
-        <button class="btn" id="add-ballots">Anlegen</button>
+        <button class="btn" id="add-ballots">Erzeugen</button>
         <select id="print-per" title="Stimmzettel pro Seite">
-          <option value="25">25 pro Seite</option>
-          <option value="50" selected>50 pro Seite</option>
-          <option value="100">100 pro Seite</option>
+          <option value="25">25 / Seite</option>
+          <option value="50" selected>50 / Seite</option>
+          <option value="100">100 / Seite</option>
         </select>
-        <label class="qr-host"><input type="checkbox" id="print-qr" checked> QR-Code auf den Zetteln</label>
-        <button class="btn ghost" id="print-ballots" ${ballots.length ? "" : "disabled"}>Stimmzettel drucken</button>
+        <label class="qr-host"><input type="checkbox" id="print-qr" checked> QR-Code</label>
+        <button class="btn ghost" id="print-ballots" ${ballots.length ? "" : "disabled"}>Drucken</button>
       </div>
       <div class="ballot-grid" id="ballot-grid"></div>
     </div>
     <div id="tab-results" class="tab-pane hidden">
       <div class="result-stats">
-        <div class="stat"><span id="res-votes">${electionData.totals.votes}</span><small>Stimmen gesamt</small></div>
+        <div class="stat"><span id="res-votes">${electionData.totals.votes}</span><small>Stimmen</small></div>
         <div class="stat"><span id="res-part">${electionData.totals.ballots ? Math.round(100 * electionData.totals.used / electionData.totals.ballots) + " %" : "–"}</span><small>Beteiligung</small></div>
-        <div class="stat"><span id="res-ballots">${electionData.totals.used}/${electionData.totals.ballots}</span><small>Stimmzettel ausgezählt</small></div>
+        <div class="stat"><span id="res-ballots">${electionData.totals.used}/${electionData.totals.ballots}</span><small>Stimmzettel</small></div>
       </div>
       <div class="bars" id="res-bars">${renderBars(electionData)}</div>
       <div class="row-actions">

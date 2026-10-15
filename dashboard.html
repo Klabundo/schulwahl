@@ -24,31 +24,30 @@
   <div class="dash-head">
     <div class="dash-title-row">
       <h1 id="dash-title">Live-Ergebnisse</h1>
-      <span id="dash-round" class="pill round" style="display:none">Finale</span>
+      <span id="dash-round" class="pill round" style="display:none">Runde</span>
       <span id="dash-status" class="pill running" style="display:none">läuft</span>
     </div>
-    <p class="muted" id="dash-desc">Wird geladen …</p>
+    <p class="muted" id="dash-desc"></p>
   </div>
 
   <div class="dash-stats">
-    <div class="stat"><span id="stat-votes">–</span><small>abgegebene Stimmen</small></div>
-    <div class="stat"><span id="stat-part">–</span><small>Stimmzettel gezählt</small></div>
+    <div class="stat"><span id="stat-votes">–</span><small>Stimmen gesamt</small></div>
+    <div class="stat"><span id="stat-part">–</span><small>Stimmzettel</small></div>
   </div>
 
   <div class="card">
-    <div id="bars" class="bars"><p class="muted">Wähle unten eine Wahl aus –
-      dann läuft hier in Echtzeit alles mit.</p></div>
+    <div id="bars" class="bars"></div>
     <p class="hint" id="dash-hint"></p>
   </div>
 
   <div class="dash-pick">
-    <span>Wahl wählen:</span>
+    <span>Wahl:</span>
     <select id="election-select"><option value="">…</option></select>
   </div>
 </div>
 </main>
 
-<footer class="foot">Ökologie- &amp; Demokratiewoche am Käthe-Kollwitz-Gymnasium · ein Code, eine Stimme – abstimmen ist anonym</footer>
+<footer class="foot">Käthe-Kollwitz-Gymnasium</footer>
 
 <script src="static/supabase.js"></script>
 <script src="static/supabase-config.js"></script>
@@ -57,12 +56,11 @@ const params = new URLSearchParams(location.search);
 let current = params.get("e") || null;
 let realtimeChannel = null;
 
-const statusLabel = { draft: "bereit", running: "läuft gerade", closed: "beendet" };
+const statusLabel = { draft: "bereit", running: "aktiv", closed: "beendet" };
 
 async function loadResults(eid, silent = false) {
   try {
     const numEid = Number(eid);
-    // Wahl & Kandidaten abrufen
     const { data: el, error: elErr } = await supabase
       .from("elections")
       .select("*, candidates(*)")
@@ -71,7 +69,6 @@ async function loadResults(eid, silent = false) {
 
     if (elErr || !el) throw new Error("Wahl nicht gefunden");
 
-    // Stimmen für diese Wahl abrufen
     const { data: votes, error: vErr } = await supabase
       .from("votes")
       .select("candidate_id")
@@ -112,7 +109,7 @@ function render(el) {
   document.getElementById("dash-title").textContent = el.title;
   const rp = document.getElementById("dash-round");
   if ((el.round || 1) > 1) {
-    rp.textContent = `Finale · Runde ${el.round}`;
+    rp.textContent = `Runde ${el.round}`;
     rp.style.display = "";
   } else {
     rp.style.display = "none";
@@ -148,7 +145,7 @@ function render(el) {
   }).join("");
 
   const hint = document.getElementById("dash-hint");
-  hint.textContent = el.status === "running" ? "Live-Aktualisierung aktiv." : "Wahl beendet.";
+  hint.textContent = el.status === "running" ? "Live-Aktualisierung aktiv" : "Wahl beendet";
 }
 
 function subscribeRealtime(eid) {
@@ -181,7 +178,7 @@ async function init() {
 
     if (open && open.length) {
       sel.innerHTML = open.map(e =>
-        `<option value="${e.id}">${esc(e.title)} (${statusLabel[e.status] || e.status})</option>`
+        `<option value="${e.id}">${esc(e.title)}</option>`
       ).join("");
 
       if (!current) {
