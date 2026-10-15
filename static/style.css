@@ -447,15 +447,114 @@ input:focus, textarea:focus, select:focus {
 .ballot {
   display: grid;
   place-items: center;
-  gap: .3rem;
+  gap: .4rem;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 10px;
-  padding: .6rem;
+  padding: .7rem;
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
 }
-.ballot img { width: 96px; height: 96px; }
-.ballot code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 600; }
+.ballot:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+.ballot .ballot-qr {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ballot .ballot-qr canvas, .ballot .ballot-qr img {
+  width: 64px !important;
+  height: 64px !important;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  border-radius: 4px;
+}
+.ballot code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 600; font-size: 0.95rem; }
 .ballot.used { opacity: .45; }
+
+/* ---------- Lightbox Modal ---------- */
+.lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+.lightbox-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(4px);
+}
+.lightbox-card {
+  position: relative;
+  z-index: 1;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 2rem;
+  max-width: 90vw;
+  width: 380px;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+  animation: popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+.lightbox-close {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  background: none;
+  border: none;
+  font-size: 28px;
+  line-height: 1;
+  color: #64748b;
+  cursor: pointer;
+  padding: 4px;
+}
+.lightbox-close:hover { color: #0f172a; }
+.lightbox-qr {
+  width: 280px;
+  height: 280px;
+  margin: 0.5rem auto 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.lightbox-qr canvas, .lightbox-qr img {
+  width: 280px !important;
+  height: 280px !important;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  border-radius: 8px;
+}
+.lightbox-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1.7rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--accent);
+  margin-bottom: 0.3rem;
+}
+.lightbox-title {
+  color: var(--muted);
+  font-size: 0.95rem;
+  margin-bottom: 1.2rem;
+}
+.lightbox-actions {
+  display: flex;
+  justify-content: center;
+  gap: 0.8rem;
+}
 
 .result-stats { display: flex; gap: .8rem; margin-bottom: 1rem; flex-wrap: wrap; }
 .result-stats .stat { box-shadow: none; padding: .6rem .9rem; }

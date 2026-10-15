@@ -76,6 +76,21 @@
 </div>
 </main>
 
+<!-- QR Lightbox Modal -->
+<div id="qr-lightbox" class="lightbox-overlay no-print" style="display:none">
+  <div class="lightbox-backdrop" id="lightbox-backdrop"></div>
+  <div class="lightbox-card">
+    <button class="lightbox-close" id="lightbox-close-btn" type="button" title="Schließen (Esc)">&times;</button>
+    <div id="lightbox-qr-container" class="lightbox-qr"></div>
+    <div class="lightbox-code" id="lightbox-code"></div>
+    <div class="lightbox-title" id="lightbox-title"></div>
+    <div class="lightbox-actions">
+      <a class="btn small" id="lightbox-link" target="_blank">Im Browser öffnen ↗</a>
+      <button class="btn ghost small" id="lightbox-copy-btn" type="button">Code kopieren</button>
+    </div>
+  </div>
+</div>
+
 <footer class="foot">Käthe-Kollwitz-Gymnasium</footer>
 
 <script src="static/supabase.js"></script>

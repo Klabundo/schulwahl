@@ -24,7 +24,11 @@
   .screen-bar button.btn { background: var(--blue); color: #fff; border: none; }
 
   @page { size: A4; margin: 0; }
-  @media print { .screen-bar { display: none; } }
+  @media print {
+    .screen-bar, .lightbox-overlay { display: none !important; }
+    .cell .qr { cursor: default; }
+    .cell .qr:hover { transform: none; filter: none; }
+  }
 
   .print-page { padding: 10mm 9mm; page-break-after: always; }
   .print-page:last-child { page-break-after: auto; }
@@ -41,10 +45,111 @@
   .cell .code { font-family: "Courier New", monospace; font-size: 14pt;
     font-weight: 700; letter-spacing: 1.5px; }
   .cell small { display: block; color: #666; font-size: 8pt; line-height: 1.35; }
-  .cell .qr { width: 42px; height: 42px; flex: none; display: flex; align-items: center; justify-content: center; }
-  .cell .qr canvas, .cell .qr img { width: 42px !important; height: 42px !important; }
+
+  /* Hochauflösende QR-Codes: intern 256x256, skaliert auf 44x44 für gestochen scharfen Druck */
+  .cell .qr {
+    width: 44px;
+    height: 44px;
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: transform 0.15s ease, filter 0.15s ease;
+  }
+  .cell .qr:hover {
+    transform: scale(1.15);
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.3));
+  }
+  .cell .qr canvas, .cell .qr img {
+    width: 44px !important;
+    height: 44px !important;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
   .cell.used { opacity: .45; }
   .cell.used .code { text-decoration: line-through; }
+
+  /* Lightbox für vergrößerten QR-Code */
+  .lightbox-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+  }
+  .lightbox-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.75);
+    backdrop-filter: blur(4px);
+  }
+  .lightbox-card {
+    position: relative;
+    z-index: 1;
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 2rem;
+    max-width: 90vw;
+    width: 380px;
+    text-align: center;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    animation: popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @keyframes popIn {
+    from { opacity: 0; transform: scale(0.92); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .lightbox-close {
+    position: absolute;
+    top: 10px;
+    right: 14px;
+    background: none;
+    border: none;
+    font-size: 28px;
+    line-height: 1;
+    color: #64748b;
+    cursor: pointer;
+    padding: 4px;
+  }
+  .lightbox-close:hover { color: #0f172a; }
+  .lightbox-qr {
+    width: 280px;
+    height: 280px;
+    margin: 0.5rem auto 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .lightbox-qr canvas, .lightbox-qr img {
+    width: 280px !important;
+    height: 280px !important;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    border-radius: 8px;
+  }
+  .lightbox-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 1.7rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--blue);
+    margin-bottom: 0.3rem;
+  }
+  .lightbox-title {
+    color: #64748b;
+    font-size: 0.95rem;
+    margin-bottom: 1.2rem;
+  }
+  .lightbox-actions {
+    display: flex;
+    justify-content: center;
+    gap: 0.8rem;
+  }
+
   #auth-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 99; }
   .auth-card { background: #fff; padding: 24px; border-radius: 12px; width: 340px; }
 </style>
@@ -56,6 +161,21 @@
     <h3>Admin-Passwort</h3>
     <input type="password" id="overlay-pw" style="width:100%; padding:8px; margin: 10px 0;">
     <button class="btn" id="overlay-login-btn">Freischalten</button>
+  </div>
+</div>
+
+<!-- QR Lightbox Modal -->
+<div id="qr-lightbox" class="lightbox-overlay" style="display:none">
+  <div class="lightbox-backdrop" id="lightbox-backdrop"></div>
+  <div class="lightbox-card">
+    <button class="lightbox-close" id="lightbox-close-btn" type="button" title="Schließen (Esc)">&times;</button>
+    <div id="lightbox-qr-container" class="lightbox-qr"></div>
+    <div class="lightbox-code" id="lightbox-code"></div>
+    <div class="lightbox-title" id="lightbox-title"></div>
+    <div class="lightbox-actions">
+      <a class="btn small" id="lightbox-link" target="_blank">Im Browser öffnen ↗</a>
+      <button class="btn ghost small" id="lightbox-copy-btn" type="button">Code kopieren</button>
+    </div>
   </div>
 </div>
 
@@ -97,6 +217,42 @@ function getVoteUrl(code) {
   const origin = location.origin + location.pathname.replace("print.html", "vote.html");
   return `${origin}?e=${eid}&code=${encodeURIComponent(code)}`;
 }
+
+let activeLightboxQr = null;
+function openLightbox(title, code, url) {
+  document.getElementById("lightbox-title").textContent = title;
+  document.getElementById("lightbox-code").textContent = code;
+  document.getElementById("lightbox-link").href = url;
+
+  const qrBox = document.getElementById("lightbox-qr-container");
+  qrBox.innerHTML = "";
+  activeLightboxQr = new QRCode(qrBox, {
+    text: url,
+    width: 280,
+    height: 280,
+    correctLevel: QRCode.CorrectLevel.H
+  });
+
+  const copyBtn = document.getElementById("lightbox-copy-btn");
+  copyBtn.textContent = "Code kopieren";
+  copyBtn.onclick = () => {
+    navigator.clipboard.writeText(code);
+    copyBtn.textContent = "Kopiert!";
+    setTimeout(() => { copyBtn.textContent = "Code kopieren"; }, 1500);
+  };
+
+  document.getElementById("qr-lightbox").style.display = "flex";
+}
+
+function closeLightbox() {
+  document.getElementById("qr-lightbox").style.display = "none";
+}
+
+document.getElementById("lightbox-backdrop").addEventListener("click", closeLightbox);
+document.getElementById("lightbox-close-btn").addEventListener("click", closeLightbox);
+window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeLightbox();
+});
 
 async function render() {
   if (!eid) {
@@ -172,11 +328,16 @@ async function render() {
       if (withQr) {
         qrContainer = document.createElement("div");
         qrContainer.className = "qr";
+        qrContainer.title = "Klicken zum Vergrößern";
+        // Hochauflösende 256x256 Pixel-Generierung mit maximaler Fehlerkorrektur (Level H)
         new QRCode(qrContainer, {
           text: getVoteUrl(b.code),
-          width: 42,
-          height: 42,
-          correctLevel: QRCode.CorrectLevel.M
+          width: 256,
+          height: 256,
+          correctLevel: QRCode.CorrectLevel.H
+        });
+        qrContainer.addEventListener("click", () => {
+          openLightbox(el.title, b.code, getVoteUrl(b.code));
         });
         cell.appendChild(qrContainer);
       }

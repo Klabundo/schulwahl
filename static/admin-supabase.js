@@ -304,7 +304,7 @@ async function loadDetail() {
   });
 
   loadCandidatesList(electionData);
-  renderBallotsGrid(ballots);
+  renderBallotsGrid(ballots, numEid, el.title);
 }
 
 function exportCsv(el) {
@@ -366,17 +366,77 @@ function loadCandidatesList(el) {
     }));
 }
 
-function renderBallotsGrid(ballots) {
+function getVoteUrlForAdmin(eid, code) {
+  const origin = location.origin + location.pathname.replace("admin.html", "vote.html");
+  return `${origin}?e=${eid}&code=${encodeURIComponent(code)}`;
+}
+
+let activeAdminLightboxQr = null;
+function openAdminLightbox(title, code, url) {
+  $("lightbox-title").textContent = title;
+  $("lightbox-code").textContent = code;
+  $("lightbox-link").href = url;
+
+  const qrBox = $("lightbox-qr-container");
+  qrBox.innerHTML = "";
+  activeAdminLightboxQr = new QRCode(qrBox, {
+    text: url,
+    width: 280,
+    height: 280,
+    correctLevel: QRCode.CorrectLevel.H
+  });
+
+  const copyBtn = $("lightbox-copy-btn");
+  copyBtn.textContent = "Code kopieren";
+  copyBtn.onclick = () => {
+    navigator.clipboard.writeText(code);
+    copyBtn.textContent = "Kopiert!";
+    setTimeout(() => { copyBtn.textContent = "Code kopieren"; }, 1500);
+  };
+
+  $("qr-lightbox").style.display = "flex";
+}
+
+function closeAdminLightbox() {
+  $("qr-lightbox").style.display = "none";
+}
+
+function renderBallotsGrid(ballots, eid, title) {
   const grid = $("ballot-grid");
   if (!ballots.length) {
     grid.innerHTML = '<p class="muted">Noch keine Stimmzettel angelegt – oben kannst du welche anlegen.</p>';
     return;
   }
-  grid.innerHTML = ballots.map(b => `
-    <div class="ballot ${b.used_at ? "used" : ""}">
+  grid.innerHTML = "";
+  ballots.forEach(b => {
+    const card = document.createElement("div");
+    card.className = `ballot ${b.used_at ? "used" : ""}`;
+    card.title = "Klicken zum Vergrößern";
+
+    const voteUrl = getVoteUrlForAdmin(eid, b.code);
+
+    const qrDiv = document.createElement("div");
+    qrDiv.className = "ballot-qr";
+    // 180x180 Pixel für scharfe Darstellung
+    new QRCode(qrDiv, {
+      text: voteUrl,
+      width: 180,
+      height: 180,
+      correctLevel: QRCode.CorrectLevel.M
+    });
+
+    const info = document.createElement("div");
+    info.style.textAlign = "center";
+    info.innerHTML = `
       <code>${esc(b.code)}</code>
-      <span class="pill ${b.used_at ? "closed" : "running"}">${b.used_at ? "verwendet" : "frei"}</span>
-    </div>`).join("");
+      <div style="margin-top:4px"><span class="pill ${b.used_at ? "closed" : "running"}">${b.used_at ? "verwendet" : "frei"}</span></div>
+    `;
+
+    card.appendChild(qrDiv);
+    card.appendChild(info);
+    card.addEventListener("click", () => openAdminLightbox(title, b.code, voteUrl));
+    grid.appendChild(card);
+  });
 }
 
 function switchTab(name) {
@@ -457,6 +517,12 @@ async function initAdminApp() {
   $("logout-btn").addEventListener("click", () => {
     sessionStorage.removeItem("admin_pw");
     location.reload();
+  });
+
+  if ($("lightbox-backdrop")) $("lightbox-backdrop").addEventListener("click", closeAdminLightbox);
+  if ($("lightbox-close-btn")) $("lightbox-close-btn").addEventListener("click", closeAdminLightbox);
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeAdminLightbox();
   });
 }
 
