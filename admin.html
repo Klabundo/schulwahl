@@ -38,7 +38,7 @@
 <!-- Admin Dashboard -->
 <div id="admin-section" class="admin-layout" style="display:none">
   <aside class="admin-side no-print">
-    <button class="btn primary wide" id="new-election-btn">Neue Wahl anlegen</button>
+    <button class="btn primary wide" id="new-election-btn">Neu anlegen</button>
     <div id="election-list" class="election-list"></div>
     <div class="side-foot no-print">
       <button class="linkish" id="change-pw-btn">Passwort ändern</button>
@@ -48,30 +48,30 @@
 
   <section class="admin-main">
     <div id="new-panel" class="card hidden">
-      <h2>Neue Wahl</h2>
+      <h2>Neue Abstimmung / Umfrage</h2>
       <div class="stack">
-        <label class="field"><span>Titel</span>
-          <input id="new-title" type="text">
+        <label class="field"><span>Titel / Frage</span>
+          <input id="new-title" type="text" placeholder="z. B. „Projektwoche: Welches Thema?“ oder „Schülerratswahl“">
         </label>
-        <label class="field"><span>Beschreibung (optional)</span>
-          <textarea id="new-desc" rows="3"></textarea>
+        <label class="field"><span>Beschreibung / Details (optional)</span>
+          <textarea id="new-desc" rows="3" placeholder="Worum geht es bei dieser Umfrage?"></textarea>
         </label>
-        <label class="field"><span>Max. Stimmen pro Person</span>
+        <label class="field"><span>Erlaubte Auswahl pro Person (z. B. 1 für Einzelauswahl, 2+ für Mehrfachauswahl)</span>
           <input id="new-max" type="number" min="1" max="10" value="1">
         </label>
-        <label class="field"><span>Stichtag (optional)</span>
+        <label class="field"><span>Stichtag / Frist (optional)</span>
           <input id="new-deadline" type="datetime-local">
         </label>
         <label class="field" style="flex-direction:row; gap:0.6rem; align-items:center;">
           <input id="new-hide-results" type="checkbox">
-          <span>Zwischenstand bis Wahlschluss verbergen (Blind-Voting)</span>
+          <span>Zwischenstand bis zum Ende verbergen (Blind-Voting)</span>
         </label>
         <button class="btn primary" id="create-election">Anlegen</button>
       </div>
     </div>
 
     <div id="detail" class="hidden"></div>
-    <div id="placeholder" class="placeholder">Wahl auswählen oder neu anlegen.</div>
+    <div id="placeholder" class="placeholder">Abstimmung oder Umfrage auswählen oder neu anlegen.</div>
   </section>
 </div>
 </main>

@@ -50,7 +50,7 @@ async function refreshList() {
     return `
     <button class="list-item ${currentElection === e.id ? "active" : ""}" data-id="${e.id}">
       <span class="list-title">${esc(e.title)}${(e.round || 1) > 1 ? ' <span class="pill round sm">Finale</span>' : ""}</span>
-      <span class="list-meta">${plural(cCount, "1 Kandidat:in", cCount + " Kandidat:innen")}
+      <span class="list-meta">${plural(cCount, "1 Option", cCount + " Optionen")}
         · ${bCount} Stimmzettel · ${plural(vCount, "1 Stimme", vCount + " Stimmen")}
         ${e.ends_at && e.status !== "closed" ? ` · bis ${fmtDe(e.ends_at)}` : ""}</span>
       ${statusPill(e.status)}
@@ -147,15 +147,21 @@ async function loadDetail() {
       </div>
     </div>
     <div class="tabs">
-      <button class="tab active" data-tab="cands">Kandidat:innen</button>
+      <button class="tab active" data-tab="cands">Optionen / Antworten</button>
       <button class="tab" data-tab="ballots">Stimmzettel</button>
       <button class="tab" data-tab="results">Ergebnisse</button>
     </div>
     <div id="tab-cands" class="tab-pane">
       <div class="add-row">
-        <input id="cand-name" placeholder="Name">
-        <input id="cand-slogan" placeholder="Slogan (optional)">
+        <input id="cand-name" placeholder="Option / Antwort (z. B. Ja, Nein, Projekt)">
+        <input id="cand-slogan" placeholder="Zusatzinfo / Beschreibung (optional)">
         <button class="btn" id="add-cand">Hinzufügen</button>
+      </div>
+      <div class="presets-row" style="display:flex; gap:0.5rem; margin-bottom:1rem; flex-wrap:wrap; align-items:center;">
+        <span style="font-size:0.85rem; color:var(--muted); font-weight:600;">Schnellvorlagen:</span>
+        <button class="btn ghost small" id="preset-yesno" type="button">+ Ja / Nein</button>
+        <button class="btn ghost small" id="preset-yesnoabs" type="button">+ Ja / Nein / Enthaltung</button>
+        <button class="btn ghost small" id="preset-grades" type="button">+ Noten 1 bis 6</button>
       </div>
       <div class="cand-list" id="cand-list"></div>
     </div>
@@ -274,6 +280,42 @@ async function loadDetail() {
     refreshList();
   });
 
+  async function addBatchOptions(opts) {
+    for (const o of opts) {
+      await supabase.rpc("admin_add_candidate", {
+        p_pw: pw,
+        p_election_id: numEid,
+        p_name: o.name,
+        p_slogan: o.slogan || ""
+      });
+    }
+    await loadDetail();
+    refreshList();
+  }
+
+  if ($("preset-yesno")) {
+    $("preset-yesno").addEventListener("click", () => {
+      addBatchOptions([{ name: "Ja" }, { name: "Nein" }]);
+    });
+  }
+  if ($("preset-yesnoabs")) {
+    $("preset-yesnoabs").addEventListener("click", () => {
+      addBatchOptions([{ name: "Ja" }, { name: "Nein" }, { name: "Enthaltung" }]);
+    });
+  }
+  if ($("preset-grades")) {
+    $("preset-grades").addEventListener("click", () => {
+      addBatchOptions([
+        { name: "Note 1", slogan: "Sehr gut" },
+        { name: "Note 2", slogan: "Gut" },
+        { name: "Note 3", slogan: "Befriedigend" },
+        { name: "Note 4", slogan: "Ausreichend" },
+        { name: "Note 5", slogan: "Mangelhaft" },
+        { name: "Note 6", slogan: "Ungenügend" }
+      ]);
+    });
+  }
+
   $("add-ballots").addEventListener("click", async () => {
     const count = Number($("ballot-count").value);
     if (!count || count <= 0) return;
@@ -308,7 +350,7 @@ async function loadDetail() {
 }
 
 function exportCsv(el) {
-  let csv = "Kandidat;Slogan;Stimmen;Prozent\n";
+  let csv = "Option;Zusatzinfo;Stimmen;Prozent\n";
   const total = el.totals.votes || 0;
   el.candidates.forEach(c => {
     const pct = total ? (100 * c.votes / total).toFixed(1) : "0.0";
@@ -318,7 +360,7 @@ function exportCsv(el) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `wahl-${el.id}-ergebnisse.csv`;
+  a.download = `abstimmung-${el.id}-ergebnisse.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -343,7 +385,7 @@ function renderBars(el) {
 function loadCandidatesList(el) {
   const list = $("cand-list");
   if (!el.candidates.length) {
-    list.innerHTML = '<p class="muted">Noch keine Kandidat:innen.</p>';
+    list.innerHTML = '<p class="muted">Noch keine Optionen / Antworten angelegt.</p>';
     return;
   }
   const pw = getAdminPw();
@@ -355,7 +397,7 @@ function loadCandidatesList(el) {
 
   list.querySelectorAll(".del-cand").forEach(b =>
     b.addEventListener("click", async () => {
-      if (confirm("Kandidatur wirklich entfernen? Auch bereits abgegebene Stimmen werden gelöscht.")) {
+      if (confirm("Option wirklich entfernen? Auch bereits abgegebene Stimmen darauf werden gelöscht.")) {
         await supabase.rpc("admin_delete_candidate", {
           p_pw: pw,
           p_candidate_id: Number(b.dataset.id)
