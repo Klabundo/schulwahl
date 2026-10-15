@@ -18,7 +18,7 @@
   .screen-bar label { font-size: 14px; display: flex; gap: 6px; align-items: center; }
   .screen-bar .spacer { margin-left: auto; display: flex; gap: 10px; }
   .screen-bar a.btn, .screen-bar button.btn {
-    font-size: 14px; padding: 6px 14px; border-radius: 8px; cursor: pointer;
+    font-size: 14px; padding: 6px 14px; border-radius: 0; cursor: pointer;
     text-decoration: none; display: inline-block; }
   .screen-bar a.btn { background: #fff; color: var(--blue); border: 1.5px solid var(--blue); }
   .screen-bar button.btn { background: var(--blue); color: #fff; border: none; }
@@ -39,7 +39,7 @@
   .print-head h2 small { font-size: 10pt; color: #555; font-weight: 400; }
   .print-head .meta { font-size: 9.5pt; color: #555; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
-  .cell { border: 1.5px solid #333; border-radius: 6px; padding: 6px 10px;
+  .cell { border: 1.5px solid #333; border-radius: 0; padding: 6px 10px;
     display: flex; gap: 10px; align-items: center; min-height: 40px;
     page-break-inside: avoid; }
   .cell .code { font-family: "Courier New", monospace; font-size: 14pt;
@@ -55,7 +55,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    border-radius: 4px;
+    border-radius: 0;
     transition: transform 0.15s ease, filter 0.15s ease;
   }
   .cell .qr:hover {
@@ -91,7 +91,7 @@
     position: relative;
     z-index: 1;
     background: #ffffff;
-    border-radius: 16px;
+    border-radius: 0;
     padding: 2rem;
     max-width: 90vw;
     width: 380px;
@@ -129,7 +129,7 @@
     height: 280px !important;
     image-rendering: pixelated;
     image-rendering: crisp-edges;
-    border-radius: 8px;
+    border-radius: 0;
   }
   .lightbox-code {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -151,7 +151,7 @@
   }
 
   #auth-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 99; }
-  .auth-card { background: #fff; padding: 24px; border-radius: 12px; width: 340px; }
+  .auth-card { background: #fff; padding: 24px; border-radius: 0; width: 340px; }
 </style>
 </head>
 <body>

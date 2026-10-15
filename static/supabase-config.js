@@ -27,3 +27,26 @@ function fmtDe(v) {
   const pad = n => String(n).padStart(2, "0");
   return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}., ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
+
+// Global Theme Handling
+window.toggleTheme = function() {
+  const current = document.documentElement.getAttribute("data-theme") ||
+    (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  const next = current === "dark" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", next);
+  try { localStorage.setItem("theme", next); } catch (e) {}
+};
+
+function bindThemeToggle() {
+  const btn = document.getElementById("theme-toggle");
+  if (btn && !btn.dataset.bound) {
+    btn.dataset.bound = "1";
+    btn.addEventListener("click", window.toggleTheme);
+  }
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", bindThemeToggle);
+} else {
+  bindThemeToggle();
+}
