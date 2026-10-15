@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <title>Wahlsystem · Käthe-Kollwitz-Gymnasium</title>
+  <script>
+    var p = window.location.pathname;
+    var search = window.location.search;
+    if (/\/vote\/?$/i.test(p)) {
+      window.location.replace("vote.html" + search);
+    } else if (/\/dashboard\/?$/i.test(p)) {
+      window.location.replace("dashboard.html" + search);
+    } else if (/\/admin\/?$/i.test(p)) {
+      window.location.replace("admin.html" + search);
+    } else if (/\/print\/?$/i.test(p)) {
+      window.location.replace("print.html" + search);
+    } else {
+      window.location.replace("index.html");
+    }
+  </script>
+</head>
+<body>
+</body>
+</html>

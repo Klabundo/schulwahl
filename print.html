@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Stimmzettel drucken · Käthe-Kollwitz-Gymnasium</title>
+<style>
+  :root { --blue: #265D8E; --orange: #FCB11B; }
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+         margin: 0; color: #1f2933; background: #fff; }
+
+  .screen-bar { position: sticky; top: 0; z-index: 9;
+    background: #fff; border-bottom: 3px solid var(--blue);
+    padding: 10px 16px; display: flex; gap: 14px; align-items: center;
+    flex-wrap: wrap; }
+  .screen-bar h1 { font-size: 15px; margin: 0 12px 0 0; color: var(--blue); }
+  .screen-bar select { padding: 4px 8px; }
+  .screen-bar label { font-size: 14px; display: flex; gap: 6px; align-items: center; }
+  .screen-bar .spacer { margin-left: auto; display: flex; gap: 10px; }
+  .screen-bar a.btn, .screen-bar button.btn {
+    font-size: 14px; padding: 6px 14px; border-radius: 8px; cursor: pointer;
+    text-decoration: none; display: inline-block; }
+  .screen-bar a.btn { background: #fff; color: var(--blue); border: 1.5px solid var(--blue); }
+  .screen-bar button.btn { background: var(--blue); color: #fff; border: none; }
+
+  @page { size: A4; margin: 0; }
+  @media print { .screen-bar { display: none; } }
+
+  .print-page { padding: 10mm 9mm; page-break-after: always; }
+  .print-page:last-child { page-break-after: auto; }
+  .print-head { display: flex; justify-content: space-between; align-items: baseline;
+    border-bottom: 3px solid var(--blue); padding-bottom: 6px; margin-bottom: 9px;
+    gap: 12px; flex-wrap: wrap; }
+  .print-head h2 { font-size: 15pt; margin: 0; color: var(--blue); }
+  .print-head h2 small { font-size: 10pt; color: #555; font-weight: 400; }
+  .print-head .meta { font-size: 9.5pt; color: #555; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+  .cell { border: 1.5px solid #333; border-radius: 6px; padding: 6px 10px;
+    display: flex; gap: 10px; align-items: center; min-height: 40px;
+    page-break-inside: avoid; }
+  .cell .code { font-family: "Courier New", monospace; font-size: 14pt;
+    font-weight: 700; letter-spacing: 1.5px; }
+  .cell small { display: block; color: #666; font-size: 8pt; line-height: 1.35; }
+  .cell .qr { width: 42px; height: 42px; flex: none; display: flex; align-items: center; justify-content: center; }
+  .cell .qr canvas, .cell .qr img { width: 42px !important; height: 42px !important; }
+  .cell.used { opacity: .45; }
+  .cell.used .code { text-decoration: line-through; }
+  #auth-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 99; }
+  .auth-card { background: #fff; padding: 24px; border-radius: 12px; width: 340px; }
+</style>
+</head>
+<body>
+
+<div id="auth-overlay" style="display:none">
+  <div class="auth-card">
+    <h3>Admin-Passwort</h3>
+    <input type="password" id="overlay-pw" style="width:100%; padding:8px; margin: 10px 0;">
+    <button class="btn" id="overlay-login-btn">Freischalten</button>
+  </div>
+</div>
+
+<div class="screen-bar">
+  <h1 id="bar-title">Stimmzettel drucken</h1>
+  <label><select id="per-sel">
+    <option value="25">25 pro Seite</option>
+    <option value="50" selected>50 pro Seite</option>
+    <option value="100">100 pro Seite</option>
+  </select></label>
+  <label><input type="checkbox" id="qr-chk" checked> QR-Code auf jedem Zettel</label>
+  <span class="spacer">
+    <a class="btn" href="admin.html">Zurück zur Verwaltung</a>
+    <button class="btn" id="print-btn" type="button">Drucken</button>
+  </span>
+</div>
+
+<div id="pages-container"></div>
+
+<script src="static/supabase.js"></script>
+<script src="static/supabase-config.js"></script>
+<script src="static/qrcode.min.js"></script>
+<script>
+const qs = new URLSearchParams(location.search);
+const eid = Number(qs.get("e"));
+let pw = sessionStorage.getItem("admin_pw");
+
+function getVoteUrl(code) {
+  const origin = location.origin + location.pathname.replace("print.html", "vote.html");
+  return `${origin}?e=${eid}&code=${encodeURIComponent(code)}`;
+}
+
+async function render() {
+  if (!eid) {
+    document.body.innerHTML = "<p>Keine Wahl angegeben (?e=...).</p>";
+    return;
+  }
+
+  const { data: el } = await supabase.from("elections").select("*").eq("id", eid).single();
+  if (!el) {
+    alert("Wahl nicht gefunden.");
+    return;
+  }
+  document.getElementById("bar-title").textContent = `Stimmzettel · ${el.title}`;
+
+  const { data: res } = await supabase.rpc("admin_get_ballots", {
+    p_pw: pw,
+    p_election_id: eid
+  });
+
+  if (!res || !res.ok) {
+    sessionStorage.removeItem("admin_pw");
+    showAuth();
+    return;
+  }
+
+  const ballots = res.ballots || [];
+  const perPage = Number(document.getElementById("per-sel").value);
+  const withQr = document.getElementById("qr-chk").checked;
+  const container = document.getElementById("pages-container");
+  container.innerHTML = "";
+
+  const pages = [];
+  for (let i = 0; i < ballots.length; i += perPage) {
+    pages.push(ballots.slice(i, i + perPage));
+  }
+
+  pages.forEach((pageBallots, pIdx) => {
+    const pageEl = document.createElement("div");
+    pageEl.className = "print-page";
+
+    const headEl = document.createElement("div");
+    headEl.className = "print-head";
+    headEl.innerHTML = `
+      <h2>Käthe-Kollwitz-Gymnasium <small>· ${esc(el.title)}</small></h2>
+      <div class="meta">Wahl #${el.id} · Seite ${pIdx + 1} von ${pages.length} · Zettel ${pIdx * perPage + 1} bis ${Math.min(ballots.length, (pIdx + 1) * perPage)} von ${ballots.length}</div>
+    `;
+    pageEl.appendChild(headEl);
+
+    const gridEl = document.createElement("div");
+    gridEl.className = "grid";
+
+    pageBallots.forEach(b => {
+      const cell = document.createElement("div");
+      cell.className = `cell ${b.used_at ? "used" : ""}`;
+
+      let qrContainer = null;
+      if (withQr) {
+        qrContainer = document.createElement("div");
+        qrContainer.className = "qr";
+        new QRCode(qrContainer, {
+          text: getVoteUrl(b.code),
+          width: 42,
+          height: 42,
+          correctLevel: QRCode.CorrectLevel.M
+        });
+        cell.appendChild(qrContainer);
+      }
+
+      const info = document.createElement("div");
+      info.innerHTML = `
+        <span class="code">${esc(b.code)}</span>
+        ${b.used_at ? "<small>★ bereits verwendet</small>" : withQr ? "<small>per QR scannen – oder Code eingeben</small>" : `<small>abstimmen bei Wahl #${el.id}</small>`}
+      `;
+      cell.appendChild(info);
+      gridEl.appendChild(cell);
+    });
+
+    pageEl.appendChild(gridEl);
+    container.appendChild(pageEl);
+  });
+}
+
+function showAuth() {
+  document.getElementById("auth-overlay").style.display = "flex";
+  document.getElementById("overlay-login-btn").onclick = async () => {
+    const val = document.getElementById("overlay-pw").value;
+    const { data } = await supabase.rpc("check_admin_pass", { p_pw: val });
+    if (data === true) {
+      pw = val;
+      sessionStorage.setItem("admin_pw", pw);
+      document.getElementById("auth-overlay").style.display = "none";
+      render();
+    } else {
+      alert("Falsches Passwort.");
+    }
+  };
+}
+
+document.getElementById("per-sel").addEventListener("change", render);
+document.getElementById("qr-chk").addEventListener("change", render);
+document.getElementById("print-btn").addEventListener("click", () => window.print());
+
+if (!pw) {
+  showAuth();
+} else {
+  render();
+}
+</script>
+</body>
+</html>

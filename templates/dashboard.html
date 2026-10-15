@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}Live-Ergebnisse · Käthe-Kollwitz-Gymnasium{% endblock %}
+{% block content %}
+<div class="center-col dashboard">
+  <div class="dash-head">
+    <div class="dash-title-row">
+      <h1 id="dash-title">Live-Ergebnisse</h1>
+      <span id="dash-round" class="pill round" style="display:none">Finale</span>
+      <span id="dash-status" class="pill running" style="display:none">läuft</span>
+    </div>
+    <p class="muted" id="dash-desc">Wird geladen …</p>
+  </div>
+
+  <div class="dash-stats">
+    <div class="stat"><span id="stat-votes">–</span><small>abgegebene Stimmen</small></div>
+    <div class="stat"><span id="stat-part">–</span><small>Wahlbeteiligung</small></div>
+  </div>
+
+  <div class="card">
+    <div id="bars" class="bars"><p class="muted">Wähle unten eine Wahl aus –
+      dann läuft hier in Echtzeit alles mit.</p></div>
+    <p class="hint" id="dash-hint"></p>
+  </div>
+
+  <div class="dash-pick">
+    <span>Wahl wählen:</span>
+    <select id="election-select"><option value="">…</option></select>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const params = new URLSearchParams(location.search);
+let current = params.get("e") || null;
+let source = null;
+
+const statusLabel = { draft: "bereit", running: "läuft gerade", closed: "beendet" };
+
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g,
+    c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+async function loadResults(eid, silent = false) {
+  try {
+    const res = await fetch(`/api/election/${eid}/results`);
+    if (!res.ok) throw new Error();
+    render(await res.json());
+  } catch (_) {
+    if (!silent) document.getElementById("dash-desc").textContent =
+      "Keine Wahl gefunden.";
+  }
+}
+
+function render(el) {
+  document.getElementById("dash-title").textContent = el.title;
+  const rp = document.getElementById("dash-round");
+  if ((el.round || 1) > 1) {
+    rp.textContent = `Finale · Runde ${el.round}`;
+    rp.style.display = "";
+  } else {
+    rp.style.display = "none";
+  }
+  const st = document.getElementById("dash-status");
+  st.textContent = statusLabel[el.status] || el.status;
+  st.className = "pill " + (el.status === "running" ? "running"
+    : el.status === "closed" ? "closed" : "draft");
+  st.style.display = "";
+  document.getElementById("dash-desc").textContent = el.description || "";
+  document.getElementById("stat-votes").textContent = el.totals.votes;
+  const part = el.totals.ballots ?
+    Math.round(100 * el.totals.used / el.totals.ballots) : 0;
+  document.getElementById("stat-part").textContent = el.totals.ballots ?
+    part + " %" : "–";
+
+  const max = Math.max(1, ...el.candidates.map(c => c.votes));
+  const bars = document.getElementById("bars");
+  const sorted = [...el.candidates].sort((a, b) => b.votes - a.votes);
+  bars.innerHTML = sorted.map((c, i) => {
+    const pct = el.totals.votes ? Math.round(100 * c.votes / el.totals.votes) : 0;
+    return `
+      <div class="bar-row">
+        <div class="bar-label">
+          ${i === 0 && el.status === "closed" ? '<span class="crown" title="Sieg">★</span> ' : ""}
+          <strong>${esc(c.name)}</strong>
+          <span class="bar-num">${c.votes} · ${pct} %</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" style="width:${Math.round(100 * c.votes / max)}%"></div></div>
+      </div>`;
+  }).join("");
+
+  const hint = document.getElementById("dash-hint");
+  hint.textContent = el.totals.ballots ?
+    `${el.totals.used} von ${el.totals.ballots} Stimmzetteln sind ausgezählt.` : "";
+}
+
+function connectStream(eid) {
+  if (source) source.close();
+  if (!/^\d+$/.test(eid)) return;
+  source = new EventSource(`/stream/${eid}`);
+  source.onmessage = (ev) => render(JSON.parse(ev.data));
+}
+
+async function init() {
+  const sel = document.getElementById("election-select");
+  try {
+    const res = await fetch("/api/elections/open");
+    const open = await res.json();
+    open.sort((a, b) => a.id - b.id);
+    sel.innerHTML = open.map(e =>
+      `<option value="${e.id}">${esc(e.title)}</option>`).join("");
+    if (!current && open.length) current = open[0].id.toString();
+  } catch (_) {}
+  if (current) {
+    sel.value = current;
+    loadResults(current);
+    connectStream(current);
+  }
+  sel.addEventListener("change", () => {
+    if (sel.value) {
+      current = sel.value;
+      loadResults(current);
+      connectStream(current);
+    }
+  });
+}
+
+window.addEventListener("DOMContentLoaded", init);
+</script>
+{% endblock %}

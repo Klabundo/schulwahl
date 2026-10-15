@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Stimmzettel · {{ el.title }}</title>
+<style>
+  :root { --blue: #265D8E; --orange: #FCB11B; }
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+         margin: 0; color: #1f2933; background: #fff; }
+
+  .screen-bar { position: sticky; top: 0; z-index: 9;
+    background: #fff; border-bottom: 3px solid var(--blue);
+    padding: 10px 16px; display: flex; gap: 14px; align-items: center;
+    flex-wrap: wrap; }
+  .screen-bar h1 { font-size: 15px; margin: 0 12px 0 0; color: var(--blue); }
+  .screen-bar select { padding: 4px 8px; }
+  .screen-bar label { font-size: 14px; display: flex; gap: 6px; align-items: center; }
+  .screen-bar .spacer { margin-left: auto; display: flex; gap: 10px; }
+  .screen-bar a.btn, .screen-bar button.btn {
+    font-size: 14px; padding: 6px 14px; border-radius: 8px; cursor: pointer;
+    text-decoration: none; display: inline-block; }
+  .screen-bar a.btn { background: #fff; color: var(--blue); border: 1.5px solid var(--blue); }
+  .screen-bar button.btn { background: var(--blue); color: #fff; border: none; }
+
+  @page { size: A4; margin: 0; }
+  @media print { .screen-bar { display: none; } }
+
+  .print-page { padding: 10mm 9mm; page-break-after: always; }
+  .print-page:last-child { page-break-after: auto; }
+  .print-head { display: flex; justify-content: space-between; align-items: baseline;
+    border-bottom: 3px solid var(--blue); padding-bottom: 6px; margin-bottom: 9px;
+    gap: 12px; flex-wrap: wrap; }
+  .print-head h2 { font-size: 15pt; margin: 0; color: var(--blue); }
+  .print-head h2 small { font-size: 10pt; color: #555; font-weight: 400; }
+  .print-head .meta { font-size: 9.5pt; color: #555; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+  .cell { border: 1.5px solid #333; border-radius: 6px; padding: 6px 10px;
+    display: flex; gap: 10px; align-items: center; min-height: 40px;
+    page-break-inside: avoid; }
+  .cell .code { font-family: "Courier New", monospace; font-size: 14pt;
+    font-weight: 700; letter-spacing: 1.5px; }
+  .cell small { display: block; color: #666; font-size: 8pt; line-height: 1.35; }
+  .cell img.qr { width: 42px; height: 42px; flex: none; }
+  .cell.used { opacity: .45; }
+  .cell.used .code { text-decoration: line-through; }
+</style>
+</head>
+<body>
+<div class="screen-bar">
+  <h1>Stimmzettel drucken</h1>
+  <label><select id="per-sel">
+    <option value="25" {{ 'selected' if per == 25 }}>25 pro Seite</option>
+    <option value="50" {{ 'selected' if per == 50 }}>50 pro Seite</option>
+    <option value="100" {{ 'selected' if per == 100 }}>100 pro Seite</option>
+  </select></label>
+  <label><input type="checkbox" id="qr-chk" {{ 'checked' if with_qr }}> QR-Code auf jedem Zettel</label>
+  <span class="spacer">
+    <a class="btn" href="{{ url_for('admin') }}">Zurück zur Verwaltung</a>
+    <button class="btn" id="print-btn" type="button">Drucken</button>
+  </span>
+</div>
+
+{% for page in pages %}
+<section class="print-page">
+  <div class="print-head">
+    <h2>{{ el.title }} <small>· Wahl-Nr. {{ el.id }} · ein Code, eine Stimme</small></h2>
+    <div class="meta">Seite {{ loop.index }} von {{ pages|length }} ·
+      Stimmzettel {{ loop.index0 * per + 1 }}–{{ [loop.index * per, total] | min }}
+      von {{ total }}</div>
+  </div>
+  <div class="grid">
+    {% for b in page %}
+    <div class="cell {{ 'used' if b.used_at }}">
+      {% if with_qr %}<img class="qr" src="{{ b.qr }}" alt="QR">{% endif %}
+      <div>
+        <span class="code">{{ b.code }}</span>
+        {% if b.used_at %}<small>★ bereits verwendet</small>
+        {% elif with_qr %}<small>per QR scannen – oder Code eingeben</small>
+        {% else %}<small>abstimmen unter {{ base_url }}/vote?e={{ el.id }}</small>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endfor %}
+
+<script>
+  const qs = new URLSearchParams(location.search);
+  const apply = (k, v) => { qs.set(k, v); location.search = qs.toString(); };
+  document.getElementById("per-sel").addEventListener("change",
+    e => apply("per", e.target.value));
+  document.getElementById("qr-chk").addEventListener("change",
+    e => apply("qr", e.target.checked ? "1" : "0"));
+  document.getElementById("print-btn").addEventListener("click", () => window.print());
+</script>
+</body>
+</html>

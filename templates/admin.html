@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Verwaltung · Käthe-Kollwitz-Gymnasium{% endblock %}
+{% block content %}
+<div class="admin-layout">
+  <aside class="admin-side no-print">
+    <button class="btn primary wide" id="new-election-btn">Neue Wahl anlegen</button>
+    <div id="election-list" class="election-list"></div>
+    <div class="side-foot no-print">
+      <button class="linkish" id="change-pw-btn">Passwort ändern</button>
+      <form method="post" action="{{ url_for('logout') }}">
+        <button class="linkish" type="submit">Abmelden</button>
+      </form>
+    </div>
+  </aside>
+
+  <section class="admin-main">
+    <div id="new-panel" class="card hidden">
+      <h2>Neue Wahl anlegen</h2>
+      <div class="stack">
+        <label class="field"><span>Titel</span>
+          <input id="new-title" type="text" placeholder="z. B. „Welches Klimaprojekt soll die Schule umsetzen?“">
+        </label>
+        <label class="field"><span>Beschreibung (optional)</span>
+          <textarea id="new-desc" rows="3" placeholder="Worum geht es bei dieser Wahl?"></textarea>
+        </label>
+        <label class="field"><span>Wie viele Optionen darf man gleichzeitig wählen?</span>
+          <input id="new-max" type="number" min="1" max="10" value="1">
+        </label>
+        <label class="field"><span>Stichtag (optional) – danach beendet sich die Wahl automatisch</span>
+          <input id="new-deadline" type="datetime-local">
+        </label>
+        <button class="btn primary" id="create-election">Anlegen</button>
+      </div>
+    </div>
+
+    <div id="detail" class="hidden"></div>
+    <div id="placeholder" class="placeholder">Wähle links eine bestehende Wahl aus – oder lege direkt eine neue an.</div>
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/admin.js"></script>
+{% endblock %}

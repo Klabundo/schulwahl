@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wahlsystem · Käthe-Kollwitz-Gymnasium</title>
+<link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="index.html" title="Käthe-Kollwitz-Gymnasium">
+    <img class="brand-logo" src="static/logo-kkg.svg" alt="Käthe-Kollwitz-Gymnasium">
+    <span class="brand-name">Käthe-Kollwitz-<small>Gymnasium</small></span>
+  </a>
+  <nav class="topnav">
+    <a href="vote.html">Abstimmen</a>
+    <a href="dashboard.html">Live-Ergebnisse</a>
+    <a href="admin.html">Verwaltung</a>
+  </nav>
+</header>
+
+<main class="main">
+<section class="hero">
+  <img class="hero-logo" src="static/logo-kkg.svg" alt="Käthe-Kollwitz-Gymnasium">
+  <p class="kicker">Ökologie- &amp; Demokratiewoche</p>
+  <h1>Abstimmen wie im echten Parlament.<br><span>Nur schneller.</span></h1>
+  <p class="sub">Jede Person erhält einen persönlichen Stimmcode – eine Person,
+  eine Stimme. Die Ergebnisse laufen live auf dem Beamer.</p>
+</section>
+
+<section class="cards3">
+  <a class="card feature" href="vote.html">
+    <h2>Stimme abgeben</h2>
+    <p>Euren Code eingeben und abstimmen – dauert keine Minute.</p>
+    <span class="card-cta">Los geht's →</span>
+  </a>
+  <a class="card feature" href="dashboard.html">
+    <h2>Live-Ergebnisse</h2>
+    <p>Alle Stimmen in Echtzeit, für das große Ergebnis-Board.</p>
+    <span class="card-cta">Zum Dashboard →</span>
+  </a>
+  <a class="card feature" href="admin.html">
+    <h2>Verwaltung</h2>
+    <p>Wahlen anlegen, Kandidat:innen pflegen, Stimmzettel erzeugen,
+      Wahl starten und beenden.</p>
+    <span class="card-cta">Zur Verwaltung →</span>
+  </a>
+</section>
+
+<section class="section">
+  <h3 class="section-title">Wahlen, die gerade laufen</h3>
+  <div id="open-elections"><p class="muted">Lade Wahlen …</p></div>
+</section>
+</main>
+
+<footer class="foot">Ökologie- &amp; Demokratiewoche am Käthe-Kollwitz-Gymnasium · ein Code, eine Stimme – abstimmen ist anonym</footer>
+
+<script src="static/supabase.js"></script>
+<script src="static/supabase-config.js"></script>
+<script>
+(async () => {
+  const box = document.getElementById("open-elections");
+  try {
+    const { data: list, error } = await supabase
+      .from("elections")
+      .select("id, title, status, votes(count)")
+      .eq("status", "running")
+      .order("id", { ascending: false });
+
+    if (error || !list || !list.length) {
+      box.innerHTML = '<p class="muted">Keine Wahl läuft gerade.</p>';
+      return;
+    }
+
+    box.innerHTML = list.map(e => {
+      const voteCount = e.votes ? e.votes[0]?.count || 0 : 0;
+      return `
+      <div class="election-row">
+        <div>
+          <strong>${esc(e.title)}</strong>
+          <span class="muted"> · ${voteCount} Stimm${voteCount === 1 ? "e" : "en"} bisher</span>
+        </div>
+        <div class="row-actions">
+          <a class="btn small" href="vote.html?e=${e.id}">Abstimmen</a>
+          <a class="btn small ghost" href="dashboard.html?e=${e.id}">Ergebnis</a>
+        </div>
+      </div>`;
+    }).join("");
+  } catch (err) {
+    box.innerHTML = '<p class="muted">Keine Wahl läuft gerade.</p>';
+  }
+})();
+</script>
+</body>
+</html>

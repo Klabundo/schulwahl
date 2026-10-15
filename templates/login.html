@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Anmelden · Käthe-Kollwitz-Gymnasium{% endblock %}
+{% block content %}
+<div class="center-col">
+  <div class="card login-card">
+    <h1>Verwaltung</h1>
+    <p class="muted">Bitte das Admin-Passwort eingeben.</p>
+    <form method="post" class="stack">
+      <label class="field">
+        <span>Passwort</span>
+        <input type="password" name="password" autofocus autocomplete="current-password" required>
+      </label>
+      {% if error %}<p class="error">{{ error }}</p>{% endif %}
+      <button class="btn primary" type="submit">Anmelden</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

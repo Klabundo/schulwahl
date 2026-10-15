@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block title %}Abstimmen · Käthe-Kollwitz-Gymnasium{% endblock %}
+{% block content %}
+<div class="center-col">
+  <div class="card vote-card">
+    <h1>Abstimmen</h1>
+    <p class="muted">Gib die Wahl-Nummer und deinen persönlichen Stimmcode vom
+      Zettel ein – schon kannst du abstimmen.</p>
+    <div class="code-row">
+      <label class="field">
+        <span>Wahl-Nummer <small class="muted">(steht oben auf dem Zettel)</small></span>
+        <input type="text" id="eid" value="{{ election_id }}" inputmode="numeric" required>
+      </label>
+      <label class="field code-field">
+        <span>Dein Stimmcode</span>
+        <input type="text" id="code" value="{{ code }}" class="code-input" placeholder="ABCD-1234"
+               maxlength="9" required>
+      </label>
+    </div>
+    <button class="btn" id="load-btn" type="button">Weiter</button>
+    <div id="election-box"></div>
+    <div id="result-box"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const $ = (id) => document.getElementById(id);
+
+function normalizeCode(v) {
+  return v.toUpperCase().replace(/[^A-Z0-9-]/g, "").replace(/-{2,}/g, "-");
+}
+
+async function loadElection() {
+  const eid = $("eid").value.trim();
+  const box = $("election-box");
+  $("result-box").innerHTML = "";
+  if (!/^\d+$/.test(eid)) {
+    box.innerHTML = '<p class="error">Gib zuerst die Wahl-Nummer an – ' +
+      'die steht oben auf deinem Zettel.</p>';
+    return;
+  }
+  const res = await fetch(`/api/election/${eid}/public`);
+  if (!res.ok) {
+    box.innerHTML = '<p class="error">Keine Wahl mit dieser Nummer gefunden – ' +
+      'Nummer bitte nochmal gegen deinen Zettel prüfen.</p>';
+    return;
+  }
+  const el = await res.json();
+  if (el.status === "draft") {
+    box.innerHTML = `<p class="status-note">„${esc(el.title)}“ hat noch nicht
+      begonnen – schau gleich noch mal vorbei.</p>`;
+    return;
+  }
+  if (el.status === "closed") {
+    box.innerHTML = `<p class="status-note">„${esc(el.title)}“ ist beendet –
+      hier geht nicht mehr abstimmen.</p>`;
+    return;
+  }
+  renderElection(el);
+}
+
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g,
+    c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function fmtUntil(ms) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  if (h > 0) return `${h} Std. ${m} Min.`;
+  if (m > 0) return `${m} Min. ${sec} Sek.`;
+  return `${sec} Sek.`;
+}
+
+function showClosed(el) {
+  $("election-box").innerHTML = "";
+  $("result-box").innerHTML = `<p class="status-note">„${esc(el.title)}“ ist beendet –
+    hier geht nicht mehr abstimmen.</p>`;
+}
+
+function renderElection(el) {
+  const box = $("election-box");
+  const multi = el.candidates.length > 1 && el.max_votes > 1;
+  box.innerHTML = `
+    <div class="election-head">
+      <h2>${esc(el.title)}
+        ${(el.round || 1) > 1 ? `<span class="pill round">Finale · Runde ${el.round}</span>` : ""}
+      </h2>
+      ${el.description ? `<p class="muted">${esc(el.description)}</p>` : ""}
+      ${el.ends_at ? `<p class="muted" id="deadline-note"></p>` : ""}
+    </div>
+    <p class="pick-hint">${multi
+        ? `Du kannst hier bis zu ${el.max_votes} Optionen ankreuzen:`
+        : "Wofür stimmst du?"}</p>
+    <div class="options" id="options">
+      ${el.candidates.map(c => `
+        <label class="option ${c.selected ? "selected" : ""}" data-id="${c.id}">
+          <input type="${multi ? "checkbox" : "radio"}" name="candidate" value="${c.id}">
+          <span class="option-text">
+            <strong>${esc(c.name)}</strong>
+            ${c.slogan ? `<small>${esc(c.slogan)}</small>` : ""}
+          </span>
+        </label>`).join("")}
+    </div>
+    <button class="btn primary wide" id="submit-vote" type="button">Abstimmen</button>`;
+  if (multi) {
+    let picked = 0;
+    box.querySelectorAll('input[name="candidate"]').forEach(inp => {
+      inp.addEventListener("change", () => {
+        picked = box.querySelectorAll('input[name="candidate"]:checked').length;
+        if (picked > el.max_votes) { inp.checked = false; picked--; }
+      });
+    });
+  }
+  $("submit-vote").addEventListener("click", async () => {
+    const ids = [...box.querySelectorAll('input[name="candidate"]:checked')].map(i => Number(i.value));
+    if (!ids.length) {
+      $("result-box").innerHTML =
+        '<p class="error">Wähle vorher mindestens eine Option aus.</p>';
+      return;
+    }
+    const btn = $("submit-vote");
+    btn.disabled = true;
+    btn.textContent = "Wird abgesendet …";
+    const res = await fetch("/api/vote", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        election_id: Number(el.id),
+        code: $("code").value,
+        candidate_ids: ids,
+      }),
+    });
+    const data = await res.json();
+    btn.disabled = false;
+    btn.textContent = "Abstimmen";
+    if (data.ok) {
+      $("election-box").innerHTML = "";
+      $("result-box").innerHTML = `
+        <div class="success">
+          <div class="success-mark">✓</div>
+          <h2>Deine Stimme ist drin!</h2>
+          <p>${esc(data.message || "Danke der Stimme.")}</p>
+          ${data.total ? `<p class="muted">Das war Stimmzettel ${data.total} –
+            du hast gerade mitentschieden.</p>` : ""}
+        </div>`;
+    } else {
+      $("result-box").innerHTML = `<p class="error">${esc(data.error || "Etwas ist schiefgelaufen.")}</p>`;
+    }
+  });
+
+  if (el.ends_at) {
+    const end = new Date(el.ends_at.replace(" ", "T")).getTime();
+    const note = $("deadline-note");
+    let timer;
+    const tick = () => {
+      const ms = end - Date.now();
+      if (ms <= 0) {
+        clearInterval(timer);
+        showClosed(el);
+        return;
+      }
+      note.textContent = `⏱ Die Abstimmung endet in ${fmtUntil(ms)}.`;
+    };
+    tick();
+    timer = setInterval(tick, 1000);
+  }
+}
+
+$("code").addEventListener("input", e => { e.target.value = normalizeCode(e.target.value); });
+
+window.addEventListener("DOMContentLoaded", () => {
+  $("load-btn").addEventListener("click", loadElection);
+  if ($("eid").value.trim()) loadElection();
+});
+</script>
+{% endblock %}

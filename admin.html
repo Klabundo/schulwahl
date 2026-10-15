@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verwaltung · Käthe-Kollwitz-Gymnasium</title>
+<link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="index.html" title="Käthe-Kollwitz-Gymnasium">
+    <img class="brand-logo" src="static/logo-kkg.svg" alt="Käthe-Kollwitz-Gymnasium">
+    <span class="brand-name">Käthe-Kollwitz-<small>Gymnasium</small></span>
+  </a>
+  <nav class="topnav">
+    <a href="vote.html">Abstimmen</a>
+    <a href="dashboard.html">Live-Ergebnisse</a>
+    <a href="admin.html">Verwaltung</a>
+  </nav>
+</header>
+
+<main class="main">
+<!-- Login Box (wenn nicht eingeloggt) -->
+<div id="login-section" class="center-col" style="display:none">
+  <div class="card login-card">
+    <h1>Verwaltung</h1>
+    <p class="muted">Bitte das Admin-Passwort eingeben (Standard: <code>admin123</code>).</p>
+    <div class="stack">
+      <label class="field">
+        <span>Passwort</span>
+        <input type="password" id="admin-login-pw" autofocus autocomplete="current-password" required>
+      </label>
+      <p id="login-error" class="error" style="display:none"></p>
+      <button class="btn primary" id="admin-login-btn" type="button">Anmelden</button>
+    </div>
+  </div>
+</div>
+
+<!-- Admin Dashboard (wenn eingeloggt) -->
+<div id="admin-section" class="admin-layout" style="display:none">
+  <aside class="admin-side no-print">
+    <button class="btn primary wide" id="new-election-btn">Neue Wahl anlegen</button>
+    <div id="election-list" class="election-list"></div>
+    <div class="side-foot no-print">
+      <button class="linkish" id="change-pw-btn">Passwort ändern</button>
+      <button class="linkish" id="logout-btn">Abmelden</button>
+    </div>
+  </aside>
+
+  <section class="admin-main">
+    <div id="new-panel" class="card hidden">
+      <h2>Neue Wahl anlegen</h2>
+      <div class="stack">
+        <label class="field"><span>Titel</span>
+          <input id="new-title" type="text" placeholder="z. B. „Welches Klimaprojekt soll die Schule umsetzen?“">
+        </label>
+        <label class="field"><span>Beschreibung (optional)</span>
+          <textarea id="new-desc" rows="3" placeholder="Worum geht es bei dieser Wahl?"></textarea>
+        </label>
+        <label class="field"><span>Wie viele Optionen darf man gleichzeitig wählen?</span>
+          <input id="new-max" type="number" min="1" max="10" value="1">
+        </label>
+        <label class="field"><span>Stichtag (optional) – danach beendet sich die Wahl automatisch</span>
+          <input id="new-deadline" type="datetime-local">
+        </label>
+        <button class="btn primary" id="create-election">Anlegen</button>
+      </div>
+    </div>
+
+    <div id="detail" class="hidden"></div>
+    <div id="placeholder" class="placeholder">Wähle links eine bestehende Wahl aus – oder lege direkt eine neue an.</div>
+  </section>
+</div>
+</main>
+
+<footer class="foot">Ökologie- &amp; Demokratiewoche am Käthe-Kollwitz-Gymnasium · ein Code, eine Stimme – abstimmen ist anonym</footer>
+
+<script src="static/supabase.js"></script>
+<script src="static/supabase-config.js"></script>
+<script src="static/qrcode.min.js"></script>
+<script src="static/admin-supabase.js"></script>
+</body>
+</html>

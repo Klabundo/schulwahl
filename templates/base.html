@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Käthe-Kollwitz-Gymnasium{% endblock %}</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/" title="Käthe-Kollwitz-Gymnasium">
+    <img class="brand-logo" src="{{ url_for('static', filename='logo-kkg.svg') }}" alt="Käthe-Kollwitz-Gymnasium">
+    <span class="brand-name">Käthe-Kollwitz-<small>Gymnasium</small></span>
+  </a>
+  <nav class="topnav">
+    <a href="/vote">Abstimmen</a>
+    <a href="/dashboard">Live-Ergebnisse</a>
+    <a href="/admin">Verwaltung</a>
+  </nav>
+</header>
+<main class="main">
+{% block content %}{% endblock %}
+</main>
+<footer class="foot">Ökologie- &amp; Demokratiewoche am Käthe-Kollwitz-Gymnasium · ein Code, eine Stimme – abstimmen ist anonym</footer>
+{% block scripts %}{% endblock %}
+</body>
+</html>
