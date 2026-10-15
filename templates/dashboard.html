@@ -1,55 +1,107 @@
-{% extends "base.html" %}
-{% block title %}Live-Ergebnisse · Käthe-Kollwitz-Gymnasium{% endblock %}
-{% block content %}
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live-Ergebnisse · Käthe-Kollwitz-Gymnasium</title>
+<link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="index.html" title="Käthe-Kollwitz-Gymnasium">
+    <img class="brand-logo" src="static/logo-kkg.svg" alt="Käthe-Kollwitz-Gymnasium">
+    <span class="brand-name">Käthe-Kollwitz-<small>Gymnasium</small></span>
+  </a>
+  <nav class="topnav">
+    <a href="vote.html">Abstimmen</a>
+    <a href="dashboard.html">Live-Ergebnisse</a>
+    <a href="admin.html">Verwaltung</a>
+  </nav>
+</header>
+
+<main class="main">
 <div class="center-col dashboard">
   <div class="dash-head">
     <div class="dash-title-row">
       <h1 id="dash-title">Live-Ergebnisse</h1>
-      <span id="dash-round" class="pill round" style="display:none">Finale</span>
+      <span id="dash-round" class="pill round" style="display:none">Runde</span>
       <span id="dash-status" class="pill running" style="display:none">läuft</span>
     </div>
-    <p class="muted" id="dash-desc">Wird geladen …</p>
+    <p class="muted" id="dash-desc"></p>
   </div>
 
   <div class="dash-stats">
-    <div class="stat"><span id="stat-votes">–</span><small>abgegebene Stimmen</small></div>
-    <div class="stat"><span id="stat-part">–</span><small>Wahlbeteiligung</small></div>
+    <div class="stat"><span id="stat-votes">–</span><small>Stimmen gesamt</small></div>
+    <div class="stat"><span id="stat-part">–</span><small>Stimmzettel</small></div>
   </div>
 
   <div class="card">
-    <div id="bars" class="bars"><p class="muted">Wähle unten eine Wahl aus –
-      dann läuft hier in Echtzeit alles mit.</p></div>
+    <div id="bars" class="bars"></div>
     <p class="hint" id="dash-hint"></p>
   </div>
 
   <div class="dash-pick">
-    <span>Wahl wählen:</span>
+    <span>Wahl:</span>
     <select id="election-select"><option value="">…</option></select>
   </div>
 </div>
-{% endblock %}
+</main>
 
-{% block scripts %}
+<footer class="foot">Käthe-Kollwitz-Gymnasium</footer>
+
+<script src="static/supabase.js"></script>
+<script src="static/supabase-config.js"></script>
 <script>
 const params = new URLSearchParams(location.search);
 let current = params.get("e") || null;
-let source = null;
+let realtimeChannel = null;
 
-const statusLabel = { draft: "bereit", running: "läuft gerade", closed: "beendet" };
-
-function esc(s) {
-  return String(s ?? "").replace(/[&<>"']/g,
-    c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-}
+const statusLabel = { draft: "bereit", running: "aktiv", closed: "beendet" };
 
 async function loadResults(eid, silent = false) {
   try {
-    const res = await fetch(`/api/election/${eid}/results`);
-    if (!res.ok) throw new Error();
-    render(await res.json());
-  } catch (_) {
-    if (!silent) document.getElementById("dash-desc").textContent =
-      "Keine Wahl gefunden.";
+    const numEid = Number(eid);
+    const { data: el, error: elErr } = await supabase
+      .from("elections")
+      .select("*, candidates(*)")
+      .eq("id", numEid)
+      .single();
+
+    if (elErr || !el) throw new Error("Wahl nicht gefunden");
+
+    const { data: votes, error: vErr } = await supabase
+      .from("votes")
+      .select("candidate_id")
+      .eq("election_id", numEid);
+
+    const voteList = votes || [];
+    const voteCounts = {};
+    for (const v of voteList) {
+      voteCounts[v.candidate_id] = (voteCounts[v.candidate_id] || 0) + 1;
+    }
+
+    const candidates = (el.candidates || []).map(c => ({
+      id: c.id,
+      name: c.name,
+      slogan: c.slogan,
+      votes: voteCounts[c.id] || 0
+    }));
+
+    render({
+      id: el.id,
+      title: el.title,
+      description: el.description,
+      round: el.round,
+      status: el.status,
+      totals: {
+        votes: voteList.length
+      },
+      candidates: candidates
+    });
+  } catch (err) {
+    if (!silent) {
+      document.getElementById("dash-desc").textContent = "Keine Wahl gefunden.";
+    }
   }
 }
 
@@ -57,75 +109,101 @@ function render(el) {
   document.getElementById("dash-title").textContent = el.title;
   const rp = document.getElementById("dash-round");
   if ((el.round || 1) > 1) {
-    rp.textContent = `Finale · Runde ${el.round}`;
+    rp.textContent = `Runde ${el.round}`;
     rp.style.display = "";
   } else {
     rp.style.display = "none";
   }
+
   const st = document.getElementById("dash-status");
   st.textContent = statusLabel[el.status] || el.status;
   st.className = "pill " + (el.status === "running" ? "running"
     : el.status === "closed" ? "closed" : "draft");
   st.style.display = "";
+
   document.getElementById("dash-desc").textContent = el.description || "";
   document.getElementById("stat-votes").textContent = el.totals.votes;
-  const part = el.totals.ballots ?
-    Math.round(100 * el.totals.used / el.totals.ballots) : 0;
-  document.getElementById("stat-part").textContent = el.totals.ballots ?
-    part + " %" : "–";
+  document.getElementById("stat-part").textContent = el.totals.votes;
 
   const max = Math.max(1, ...el.candidates.map(c => c.votes));
   const bars = document.getElementById("bars");
   const sorted = [...el.candidates].sort((a, b) => b.votes - a.votes);
+
   bars.innerHTML = sorted.map((c, i) => {
     const pct = el.totals.votes ? Math.round(100 * c.votes / el.totals.votes) : 0;
     return `
       <div class="bar-row">
         <div class="bar-label">
-          ${i === 0 && el.status === "closed" ? '<span class="crown" title="Sieg">★</span> ' : ""}
+          ${i === 0 && el.status === "closed" && c.votes > 0 ? '<span class="crown" title="Sieg">★</span> ' : ""}
           <strong>${esc(c.name)}</strong>
           <span class="bar-num">${c.votes} · ${pct} %</span>
         </div>
-        <div class="bar-track"><div class="bar-fill" style="width:${Math.round(100 * c.votes / max)}%"></div></div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width:${Math.round(100 * c.votes / max)}%"></div>
+        </div>
       </div>`;
   }).join("");
 
   const hint = document.getElementById("dash-hint");
-  hint.textContent = el.totals.ballots ?
-    `${el.totals.used} von ${el.totals.ballots} Stimmzetteln sind ausgezählt.` : "";
+  hint.textContent = el.status === "running" ? "Live-Aktualisierung aktiv" : "Wahl beendet";
 }
 
-function connectStream(eid) {
-  if (source) source.close();
-  if (!/^\d+$/.test(eid)) return;
-  source = new EventSource(`/stream/${eid}`);
-  source.onmessage = (ev) => render(JSON.parse(ev.data));
+function subscribeRealtime(eid) {
+  if (realtimeChannel) {
+    supabase.removeChannel(realtimeChannel);
+  }
+  const numEid = Number(eid);
+  realtimeChannel = supabase
+    .channel("dashboard-election-" + numEid)
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "votes", filter: `election_id=eq.${numEid}` },
+      () => loadResults(numEid, true)
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "elections", filter: `id=eq.${numEid}` },
+      () => loadResults(numEid, true)
+    )
+    .subscribe();
 }
 
 async function init() {
   const sel = document.getElementById("election-select");
   try {
-    const res = await fetch("/api/elections/open");
-    const open = await res.json();
-    open.sort((a, b) => a.id - b.id);
-    sel.innerHTML = open.map(e =>
-      `<option value="${e.id}">${esc(e.title)}</option>`).join("");
-    if (!current && open.length) current = open[0].id.toString();
+    const { data: open } = await supabase
+      .from("elections")
+      .select("id, title, status")
+      .order("id", { ascending: true });
+
+    if (open && open.length) {
+      sel.innerHTML = open.map(e =>
+        `<option value="${e.id}">${esc(e.title)}</option>`
+      ).join("");
+
+      if (!current) {
+        current = open[0].id.toString();
+      }
+    }
   } catch (_) {}
+
   if (current) {
     sel.value = current;
     loadResults(current);
-    connectStream(current);
+    subscribeRealtime(current);
   }
+
   sel.addEventListener("change", () => {
     if (sel.value) {
       current = sel.value;
       loadResults(current);
-      connectStream(current);
+      subscribeRealtime(current);
+      history.replaceState(null, "", `dashboard.html?e=${current}`);
     }
   });
 }
 
 window.addEventListener("DOMContentLoaded", init);
 </script>
-{% endblock %}
+</body>
+</html>

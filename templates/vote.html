@@ -1,20 +1,36 @@
-{% extends "base.html" %}
-{% block title %}Abstimmen · Käthe-Kollwitz-Gymnasium{% endblock %}
-{% block content %}
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Abstimmen · Käthe-Kollwitz-Gymnasium</title>
+<link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="index.html" title="Käthe-Kollwitz-Gymnasium">
+    <img class="brand-logo" src="static/logo-kkg.svg" alt="Käthe-Kollwitz-Gymnasium">
+    <span class="brand-name">Käthe-Kollwitz-<small>Gymnasium</small></span>
+  </a>
+  <nav class="topnav">
+    <a href="vote.html">Abstimmen</a>
+    <a href="dashboard.html">Live-Ergebnisse</a>
+    <a href="admin.html">Verwaltung</a>
+  </nav>
+</header>
+
+<main class="main">
 <div class="center-col">
   <div class="card vote-card">
     <h1>Abstimmen</h1>
-    <p class="muted">Gib die Wahl-Nummer und deinen persönlichen Stimmcode vom
-      Zettel ein – schon kannst du abstimmen.</p>
     <div class="code-row">
       <label class="field">
-        <span>Wahl-Nummer <small class="muted">(steht oben auf dem Zettel)</small></span>
-        <input type="text" id="eid" value="{{ election_id }}" inputmode="numeric" required>
+        <span>Wahl-Nummer</span>
+        <input type="text" id="eid" inputmode="numeric" required>
       </label>
       <label class="field code-field">
-        <span>Dein Stimmcode</span>
-        <input type="text" id="code" value="{{ code }}" class="code-input" placeholder="ABCD-1234"
-               maxlength="9" required>
+        <span>Stimmcode</span>
+        <input type="text" id="code" class="code-input" placeholder="ABCD-1234" maxlength="9" required>
       </label>
     </div>
     <button class="btn" id="load-btn" type="button">Weiter</button>
@@ -22,9 +38,12 @@
     <div id="result-box"></div>
   </div>
 </div>
-{% endblock %}
+</main>
 
-{% block scripts %}
+<footer class="foot">Käthe-Kollwitz-Gymnasium</footer>
+
+<script src="static/supabase.js"></script>
+<script src="static/supabase-config.js"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 
@@ -32,71 +51,77 @@ function normalizeCode(v) {
   return v.toUpperCase().replace(/[^A-Z0-9-]/g, "").replace(/-{2,}/g, "-");
 }
 
-async function loadElection() {
-  const eid = $("eid").value.trim();
-  const box = $("election-box");
-  $("result-box").innerHTML = "";
-  if (!/^\d+$/.test(eid)) {
-    box.innerHTML = '<p class="error">Gib zuerst die Wahl-Nummer an – ' +
-      'die steht oben auf deinem Zettel.</p>';
-    return;
-  }
-  const res = await fetch(`/api/election/${eid}/public`);
-  if (!res.ok) {
-    box.innerHTML = '<p class="error">Keine Wahl mit dieser Nummer gefunden – ' +
-      'Nummer bitte nochmal gegen deinen Zettel prüfen.</p>';
-    return;
-  }
-  const el = await res.json();
-  if (el.status === "draft") {
-    box.innerHTML = `<p class="status-note">„${esc(el.title)}“ hat noch nicht
-      begonnen – schau gleich noch mal vorbei.</p>`;
-    return;
-  }
-  if (el.status === "closed") {
-    box.innerHTML = `<p class="status-note">„${esc(el.title)}“ ist beendet –
-      hier geht nicht mehr abstimmen.</p>`;
-    return;
-  }
-  renderElection(el);
-}
-
-function esc(s) {
-  return String(s ?? "").replace(/[&<>"']/g,
-    c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-}
-
-function fmtUntil(ms) {
-  const s = Math.max(0, Math.floor(ms / 1000));
-  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
-  if (h > 0) return `${h} Std. ${m} Min.`;
-  if (m > 0) return `${m} Min. ${sec} Sek.`;
-  return `${sec} Sek.`;
-}
-
 function showClosed(el) {
   $("election-box").innerHTML = "";
-  $("result-box").innerHTML = `<p class="status-note">„${esc(el.title)}“ ist beendet –
-    hier geht nicht mehr abstimmen.</p>`;
+  $("result-box").innerHTML = `<p class="status-note">„${esc(el.title)}“ ist beendet.</p>`;
+}
+
+async function loadElection() {
+  const eid = $("eid").value.trim();
+  const code = $("code").value.trim();
+  const box = $("election-box");
+  $("result-box").innerHTML = "";
+
+  if (!/^\d+$/.test(eid)) {
+    box.innerHTML = '<p class="error">Bitte Wahl-Nummer eingeben.</p>';
+    return;
+  }
+
+  const { data: el, error } = await supabase
+    .from("elections")
+    .select("*, candidates(*)")
+    .eq("id", Number(eid))
+    .single();
+
+  if (error || !el) {
+    box.innerHTML = '<p class="error">Wahl nicht gefunden.</p>';
+    return;
+  }
+
+  if (el.status === "draft") {
+    box.innerHTML = `<p class="status-note">„${esc(el.title)}“ hat noch nicht begonnen.</p>`;
+    return;
+  }
+
+  if (el.status === "closed" || (el.ends_at && new Date(el.ends_at) <= new Date())) {
+    showClosed(el);
+    return;
+  }
+
+  if (code) {
+    const { data: check, error: checkErr } = await supabase.rpc("verify_code", {
+      p_election_id: Number(eid),
+      p_code: code
+    });
+    if (!checkErr && check && !check.valid) {
+      box.innerHTML = `<p class="error">${esc(check.error || "Ungültiger Code.")}</p>`;
+      return;
+    }
+  }
+
+  if (el.candidates) {
+    el.candidates.sort((a, b) => (a.sort - b.sort) || (a.id - b.id));
+  }
+
+  renderElection(el);
 }
 
 function renderElection(el) {
   const box = $("election-box");
   const multi = el.candidates.length > 1 && el.max_votes > 1;
+
   box.innerHTML = `
     <div class="election-head">
       <h2>${esc(el.title)}
-        ${(el.round || 1) > 1 ? `<span class="pill round">Finale · Runde ${el.round}</span>` : ""}
+        ${(el.round || 1) > 1 ? `<span class="pill round">Runde ${el.round}</span>` : ""}
       </h2>
       ${el.description ? `<p class="muted">${esc(el.description)}</p>` : ""}
       ${el.ends_at ? `<p class="muted" id="deadline-note"></p>` : ""}
     </div>
-    <p class="pick-hint">${multi
-        ? `Du kannst hier bis zu ${el.max_votes} Optionen ankreuzen:`
-        : "Wofür stimmst du?"}</p>
+    ${multi ? `<p class="pick-hint">Maximal ${el.max_votes} Stimmen:</p>` : ""}
     <div class="options" id="options">
-      ${el.candidates.map(c => `
-        <label class="option ${c.selected ? "selected" : ""}" data-id="${c.id}">
+      ${(el.candidates || []).map(c => `
+        <label class="option" data-id="${c.id}">
           <input type="${multi ? "checkbox" : "radio"}" name="candidate" value="${c.id}">
           <span class="option-text">
             <strong>${esc(c.name)}</strong>
@@ -105,54 +130,64 @@ function renderElection(el) {
         </label>`).join("")}
     </div>
     <button class="btn primary wide" id="submit-vote" type="button">Abstimmen</button>`;
+
   if (multi) {
-    let picked = 0;
     box.querySelectorAll('input[name="candidate"]').forEach(inp => {
       inp.addEventListener("change", () => {
-        picked = box.querySelectorAll('input[name="candidate"]:checked').length;
-        if (picked > el.max_votes) { inp.checked = false; picked--; }
+        const picked = box.querySelectorAll('input[name="candidate"]:checked').length;
+        if (picked > el.max_votes) { inp.checked = false; }
       });
     });
   }
+
   $("submit-vote").addEventListener("click", async () => {
     const ids = [...box.querySelectorAll('input[name="candidate"]:checked')].map(i => Number(i.value));
-    if (!ids.length) {
-      $("result-box").innerHTML =
-        '<p class="error">Wähle vorher mindestens eine Option aus.</p>';
+    const code = $("code").value.trim();
+
+    if (!code) {
+      $("result-box").innerHTML = '<p class="error">Bitte Stimmcode eingeben.</p>';
       return;
     }
+
+    if (!ids.length) {
+      $("result-box").innerHTML = '<p class="error">Bitte mindestens eine Option wählen.</p>';
+      return;
+    }
+
     const btn = $("submit-vote");
     btn.disabled = true;
-    btn.textContent = "Wird abgesendet …";
-    const res = await fetch("/api/vote", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        election_id: Number(el.id),
-        code: $("code").value,
-        candidate_ids: ids,
-      }),
-    });
-    const data = await res.json();
-    btn.disabled = false;
-    btn.textContent = "Abstimmen";
-    if (data.ok) {
-      $("election-box").innerHTML = "";
-      $("result-box").innerHTML = `
-        <div class="success">
-          <div class="success-mark">✓</div>
-          <h2>Deine Stimme ist drin!</h2>
-          <p>${esc(data.message || "Danke der Stimme.")}</p>
-          ${data.total ? `<p class="muted">Das war Stimmzettel ${data.total} –
-            du hast gerade mitentschieden.</p>` : ""}
-        </div>`;
-    } else {
-      $("result-box").innerHTML = `<p class="error">${esc(data.error || "Etwas ist schiefgelaufen.")}</p>`;
+    btn.textContent = "Senden …";
+
+    try {
+      const { data: res, error } = await supabase.rpc("cast_vote", {
+        p_code: code,
+        p_election_id: Number(el.id),
+        p_candidate_ids: ids
+      });
+
+      btn.disabled = false;
+      btn.textContent = "Abstimmen";
+
+      if (error || !res || !res.ok) {
+        $("result-box").innerHTML = `<p class="error">${esc((res && res.error) || error?.message || "Fehler beim Abstimmen.")}</p>`;
+      } else {
+        $("election-box").innerHTML = "";
+        $("result-box").innerHTML = `
+          <div class="success">
+            <div class="success-mark">✓</div>
+            <h2>Stimme gespeichert</h2>
+            <p style="margin-top:20px"><a class="btn small" href="dashboard.html?e=${el.id}">Ergebnis anzeigen →</a></p>
+          </div>`;
+      }
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = "Abstimmen";
+      $("result-box").innerHTML = '<p class="error">Netzwerkfehler.</p>';
     }
   });
 
   if (el.ends_at) {
-    const end = new Date(el.ends_at.replace(" ", "T")).getTime();
+    const end = new Date(el.ends_at).getTime();
     const note = $("deadline-note");
     let timer;
     const tick = () => {
@@ -162,7 +197,7 @@ function renderElection(el) {
         showClosed(el);
         return;
       }
-      note.textContent = `⏱ Die Abstimmung endet in ${fmtUntil(ms)}.`;
+      note.textContent = `Endet in ${fmtUntil(ms)}.`;
     };
     tick();
     timer = setInterval(tick, 1000);
@@ -172,8 +207,19 @@ function renderElection(el) {
 $("code").addEventListener("input", e => { e.target.value = normalizeCode(e.target.value); });
 
 window.addEventListener("DOMContentLoaded", () => {
+  const params = new URLSearchParams(location.search);
+  const qEid = params.get("e");
+  const qCode = params.get("code");
+
+  if (qEid) $("eid").value = qEid;
+  if (qCode) $("code").value = normalizeCode(qCode);
+
   $("load-btn").addEventListener("click", loadElection);
-  if ($("eid").value.trim()) loadElection();
+
+  if ($("eid").value.trim()) {
+    loadElection();
+  }
 });
 </script>
-{% endblock %}
+</body>
+</html>

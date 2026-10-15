@@ -1,58 +1,88 @@
-{% extends "base.html" %}
-{% block content %}
-<section class="hero">
-  <img class="hero-logo" src="{{ url_for('static', filename='logo-kkg.svg') }}" alt="Käthe-Kollwitz-Gymnasium">
-  <p class="kicker">Ökologie- &amp; Demokratiewoche</p>
-  <h1>Abstimmen wie im echten Parlament.<br><span>Nur schneller.</span></h1>
-  <p class="sub">Jede Person erhält einen persönlichen Stimmcode – eine Person,
-  eine Stimme. Die Ergebnisse laufen live auf dem Beamer.</p>
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wahlsystem · Käthe-Kollwitz-Gymnasium</title>
+<link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="index.html" title="Käthe-Kollwitz-Gymnasium">
+    <img class="brand-logo" src="static/logo-kkg.svg" alt="Käthe-Kollwitz-Gymnasium">
+    <span class="brand-name">Käthe-Kollwitz-<small>Gymnasium</small></span>
+  </a>
+  <nav class="topnav">
+    <a href="vote.html">Abstimmen</a>
+    <a href="dashboard.html">Live-Ergebnisse</a>
+    <a href="admin.html">Verwaltung</a>
+  </nav>
+</header>
+
+<main class="main">
+<section class="hero" style="padding: 1.5rem 1rem 1rem;">
+  <img class="hero-logo" src="static/logo-kkg.svg" alt="Käthe-Kollwitz-Gymnasium" style="height: 80px; margin-bottom: 0.8rem;">
+  <h1>Wahlsystem</h1>
 </section>
 
-<section class="cards3">
-  <a class="card feature" href="/vote">
+<section class="cards3" style="margin: 1.5rem 0;">
+  <a class="card feature" href="vote.html">
     <h2>Stimme abgeben</h2>
-    <p>Euren Code eingeben und abstimmen – dauert keine Minute.</p>
-    <span class="card-cta">Los geht's →</span>
+    <span class="card-cta">Öffnen →</span>
   </a>
-  <a class="card feature" href="/dashboard">
+  <a class="card feature" href="dashboard.html">
     <h2>Live-Ergebnisse</h2>
-    <p>Alle Stimmen in Echtzeit, für das große Ergebnis-Board.</p>
-    <span class="card-cta">Zum Dashboard →</span>
+    <span class="card-cta">Öffnen →</span>
   </a>
-  <a class="card feature" href="/admin">
+  <a class="card feature" href="admin.html">
     <h2>Verwaltung</h2>
-    <p>Wahlen anlegen, Kandidat:innen pflegen, Stimmzettel erzeugen,
-      Wahl starten und beenden.</p>
-    <span class="card-cta">Zur Verwaltung →</span>
+    <span class="card-cta">Öffnen →</span>
   </a>
 </section>
 
 <section class="section">
-  <h3 class="section-title">Wahlen, die gerade laufen</h3>
-  <div id="open-elections"><p class="muted">Keine Wahl läuft gerade.</p></div>
+  <h3 class="section-title">Aktive Wahlen</h3>
+  <div id="open-elections"><p class="muted">Keine Wahl aktiv.</p></div>
 </section>
-{% endblock %}
+</main>
 
-{% block scripts %}
+<footer class="foot">Käthe-Kollwitz-Gymnasium</footer>
+
+<script src="static/supabase.js"></script>
+<script src="static/supabase-config.js"></script>
 <script>
 (async () => {
   const box = document.getElementById("open-elections");
   try {
-    const res = await fetch("/api/elections/open");
-    const list = await res.json();
-    if (!list.length) return;
-    box.innerHTML = list.map(e => `
+    const { data: list, error } = await supabase
+      .from("elections")
+      .select("id, title, status, votes(count)")
+      .eq("status", "running")
+      .order("id", { ascending: false });
+
+    if (error || !list || !list.length) {
+      box.innerHTML = '<p class="muted">Keine Wahl aktiv.</p>';
+      return;
+    }
+
+    box.innerHTML = list.map(e => {
+      const voteCount = e.votes ? e.votes[0]?.count || 0 : 0;
+      return `
       <div class="election-row">
         <div>
-          <strong>${e.title}</strong>
-          <span class="muted"> · ${e.votes} Stimm${e.votes === 1 ? "e" : "en"} bisher</span>
+          <strong>${esc(e.title)}</strong>
+          <span class="muted"> · ${voteCount} Stimmen</span>
         </div>
         <div class="row-actions">
-          <a class="btn small" href="/vote?e=${e.id}">Abstimmen</a>
-          <a class="btn small ghost" href="/dashboard?e=${e.id}">Ergebnis</a>
+          <a class="btn small" href="vote.html?e=${e.id}">Abstimmen</a>
+          <a class="btn small ghost" href="dashboard.html?e=${e.id}">Ergebnis</a>
         </div>
-      </div>`).join("");
-  } catch (_) {}
+      </div>`;
+    }).join("");
+  } catch (err) {
+    box.innerHTML = '<p class="muted">Keine Wahl aktiv.</p>';
+  }
 })();
 </script>
-{% endblock %}
+</body>
+</html>
